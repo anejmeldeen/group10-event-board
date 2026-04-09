@@ -17,13 +17,13 @@
       <% } %>
 
       <h1 class="text-4xl font-extrabold mb-2 tracking-tight"><%= event.title %></h1>
-      
+
       <div class="flex items-center gap-4 text-blue-100 mt-4 text-sm font-medium">
         <div class="flex items-center gap-1.5">
           <!-- Calendar Icon -->
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
           <span>
-            <%= new Date(event.startDate).toLocaleString() %> - 
+            <%= new Date(event.startDate).toLocaleString() %> -
             <%= new Date(event.endDate).toLocaleString() %>
           </span>
         </div>
@@ -38,7 +38,7 @@
     <!-- Body Section -->
     <div class="p-8">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
+
         <!-- Left Column: Details -->
         <div class="md:col-span-2 space-y-8">
           <div>
@@ -51,13 +51,13 @@
         <div class="space-y-6">
           <div class="bg-slate-50 p-5 rounded-xl border border-slate-100">
             <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Event Details</h3>
-            
+
             <div class="space-y-4">
               <div>
                 <span class="block text-xs text-slate-500 font-medium mb-1">Organization / Organizer</span>
                 <span class="text-slate-900 font-semibold"><%= event.organizerName %></span>
               </div>
-              
+
               <div>
                 <span class="block text-xs text-slate-500 font-medium mb-1">Category</span>
                 <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-sm font-medium">
@@ -75,7 +75,7 @@
                     <span class="text-slate-400">attending (Unlimited)</span>
                   <% } %>
                 </div>
-                
+
                 <% if (event.capacity > 0) { %>
                   <!-- Progress Bar -->
                   <div class="w-full bg-slate-200 rounded-full h-1.5 mt-2">
@@ -97,9 +97,11 @@
                     </button>
                   </form>
                 <% } %>
-                <button class="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg border border-slate-300 transition-colors">
-                  Edit Event
-                </button>
+                <% if ((user.userId === event.organizerId || user.role === 'admin') && event.status !== 'cancelled') { %>
+                  <a href="/events/<%= event.id %>/edit" class="block w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg border border-slate-300 transition-colors text-center no-underline">
+                    Edit Event
+                  </a>
+                <% } %>
                 <button class="w-full py-2.5 px-4 bg-white hover:bg-rose-50 text-rose-600 font-semibold rounded-lg border border-rose-200 transition-colors">
                   Cancel Event
                 </button>
