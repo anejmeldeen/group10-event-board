@@ -17,6 +17,23 @@ export interface IEventController {
     pageError?: string | null,
   ): Promise<void>;
 
+  showEventDetail(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+  ): Promise<void>;
+
+  showDashboard(
+    res: Response,
+    store: AppSessionStore,
+  ): Promise<void>;
+
+  publishEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+  ): Promise<void>;
+
   createEventFromForm(
     res: Response,
     input: CreateEventInput,
@@ -43,6 +60,86 @@ class EventController implements IEventController {
     pageError: string | null = null,
   ): Promise<void> {
     res.render("event/create", { session, input, pageError });
+  }
+
+  async showEventDetail(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const session = touchAppSession(store);
+    const currentUser = getAuthenticatedUser(store);
+    
+    // Safety check - the route should have already guarded this, but it also allows optional auth handling?
+    // Wait, prompt says: "Any authenticated user can view a page" so currentUser is guaranteed if route is guarded
+    
+    const result = await this.service.getEventDetails(eventId, currentUser);
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session,
+      });
+      return;
+    }
+
+    res.render("event/detail", { 
+      session, 
+      event: result.value,
+      user: currentUser 
+    });
+  }
+
+  async showDashboard(
+    res: Response,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const session = touchAppSession(store);
+    const currentUser = getAuthenticatedUser(store);
+
+    const result = await this.service.listVisibleEvents(currentUser);
+
+    if (result.ok === false) {
+      res.render("home", {
+        session,
+        events: [],
+        user: currentUser,
+        pageError: "Unable to load events."
+      });
+      return;
+    }
+
+    res.render("home", {
+      session,
+      events: result.value,
+      user: currentUser,
+      pageError: null
+    });
+  }
+
+  async publishEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const currentUser = getAuthenticatedUser(store);
+    const result = await this.service.publishEvent(eventId, currentUser);
+    
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      this.logger.error(`Publish event failed: ${error.message}`);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session: touchAppSession(store),
+      });
+      return;
+    }
+
+    this.logger.info(`Published event ${result.value.id} "${result.value.title}"`);
+    res.redirect("/home");
   }
 
   async createEventFromForm(
@@ -80,7 +177,7 @@ class EventController implements IEventController {
 
     this.logger.info(`Created event ${result.value.id} "${result.value.title}"`);
     
-    // Redirect to a placeholder "drafts" view or home for now
+    // Redirect to home dashboard directly per user request
     res.redirect("/home"); 
   }
 }

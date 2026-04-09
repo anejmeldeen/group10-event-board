@@ -47,6 +47,19 @@ class InMemoryEventRepository implements IEventRepository {
       return Err(UnexpectedDependencyError("Unable to list events for organizer."));
     }
   }
+
+  async update(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
+    try {
+      const index = this.events.findIndex((e) => e.id === event.id);
+      if (index === -1) {
+        return Err(UnexpectedDependencyError(`Event ${event.id} not found.`));
+      }
+      this.events[index] = { ...event };
+      return Ok({ ...event });
+    } catch {
+      return Err(UnexpectedDependencyError("Unable to update the event."));
+    }
+  }
 }
 
 export function CreateInMemoryEventRepository(): IEventRepository {

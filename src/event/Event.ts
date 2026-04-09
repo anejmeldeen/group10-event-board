@@ -15,12 +15,14 @@ export interface IEventRecord {
   title: string;
   description: string;
   location: string;
+  category: string;
   startDate: string;   // ISO 8601 datetime string
   endDate: string;     // ISO 8601 datetime string
   organizerId: string; // User ID of the organizer who created the event
   organizerName: string;
   status: EventStatus;
   capacity: number;    // Maximum number of attendees (0 = unlimited)
+  attendeeCount: number;
   createdAt: string;   // ISO 8601 datetime string
   updatedAt: string;   // ISO 8601 datetime string
 }
@@ -33,11 +35,13 @@ export interface IEventSummary {
   title: string;
   description: string;
   location: string;
+  category: string;
   startDate: string;
   endDate: string;
   organizerName: string;
   status: EventStatus;
   capacity: number;
+  attendeeCount: number;
 }
 
 export function toEventSummary(event: IEventRecord): IEventSummary {
@@ -46,10 +50,12 @@ export function toEventSummary(event: IEventRecord): IEventSummary {
     title: event.title,
     description: event.description,
     location: event.location,
+    category: event.category,
     startDate: event.startDate,
     endDate: event.endDate,
     organizerName: event.organizerName,
     status: event.status,
     capacity: event.capacity,
+    attendeeCount: event.attendeeCount,
   };
 }

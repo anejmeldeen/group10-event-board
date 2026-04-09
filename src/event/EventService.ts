@@ -7,16 +7,18 @@
 
 import { randomUUID } from "node:crypto";
 import { Ok, Err, type Result } from "../lib/result";
-import { ValidationError, type EventError } from "./errors";
+import { ValidationError, EventNotFound, type EventError } from "./errors";
 import type { IEventRepository } from "./EventRepository";
 import type { IEventRecord, IEventSummary } from "./Event";
 import { toEventSummary } from "./Event";
+import type { IAuthenticatedUserSession } from "../session/AppSession";
 
 /** Raw input coming from the form (all strings). */
 export interface CreateEventInput {
   title: string;
   description: string;
   location: string;
+  category: string;
   startDate: string;   // Expected: ISO 8601 or datetime-local format
   endDate: string;     // Expected: ISO 8601 or datetime-local format
   capacity: string;    // Numeric string; empty or "0" means unlimited
@@ -33,6 +35,20 @@ export interface IEventService {
     input: CreateEventInput,
     organizer: OrganizerIdentity,
   ): Promise<Result<IEventSummary, EventError>>;
+
+  getEventDetails(
+    eventId: string,
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventRecord, EventError>>;
+
+  listVisibleEvents(
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventRecord[], EventError>>;
+
+  publishEvent(
+    eventId: string,
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventSummary, EventError>>;
 }
 
 // ── Validation helpers ───────────────────────────────────────────────
@@ -40,6 +56,7 @@ export interface IEventService {
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_LOCATION_LENGTH = 300;
+const MAX_CATEGORY_LENGTH = 100;
 const MAX_CAPACITY = 100_000;
 
 function validateTitle(title: string): EventError | null {
@@ -77,6 +94,17 @@ function validateLocation(location: string): EventError | null {
   }
   if (trimmed.length > MAX_LOCATION_LENGTH) {
     return ValidationError(`Location must be at most ${MAX_LOCATION_LENGTH} characters.`);
+  }
+  return null;
+}
+
+function validateCategory(category: string): EventError | null {
+  const trimmed = category.trim();
+  if (!trimmed) {
+    return ValidationError("Category is required.");
+  }
+  if (trimmed.length > MAX_CATEGORY_LENGTH) {
+    return ValidationError(`Category must be at most ${MAX_CATEGORY_LENGTH} characters.`);
   }
   return null;
 }
@@ -150,6 +178,10 @@ class EventService implements IEventService {
     const locErr = validateLocation(input.location);
     if (locErr) return Err(locErr);
 
+    // 3.5 Validate category
+    const catErr = validateCategory(input.category);
+    if (catErr) return Err(catErr);
+
     // 4. Parse & validate dates
     const startResult = parseAndValidateDate(input.startDate, "Start date");
     if (startResult.ok === false) return Err(startResult.value);
@@ -174,12 +206,14 @@ class EventService implements IEventService {
       title: input.title.trim(),
       description: input.description.trim(),
       location: input.location.trim(),
+      category: input.category.trim(),
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       organizerId: organizer.userId,
       organizerName: organizer.displayName,
       status: "draft",
       capacity,
+      attendeeCount: 0,
       createdAt: now,
       updatedAt: now,
     };
@@ -189,6 +223,85 @@ class EventService implements IEventService {
     if (created.ok === false) return Err(created.value);
 
     return Ok(toEventSummary(created.value));
+  }
+
+  async getEventDetails(
+    eventId: string,
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventRecord, EventError>> {
+    const eventResult = await this.repo.findById(eventId);
+    if (eventResult.ok === false) {
+      return Err(eventResult.value);
+    }
+    
+    const event = eventResult.value;
+    if (!event) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    if (event.status === "draft") {
+      const isOwner = currentUser?.userId === event.organizerId;
+      const isAdmin = currentUser?.role === "admin";
+      
+      if (!isOwner && !isAdmin) {
+        return Err(EventNotFound("Event not found."));
+      }
+    }
+
+    return Ok(event);
+  }
+
+  async listVisibleEvents(
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventRecord[], EventError>> {
+    const allResult = await this.repo.findAll();
+    if (allResult.ok === false) return Err(allResult.value);
+    
+    const events = allResult.value;
+    const isUserAdmin = currentUser?.role === "admin";
+    
+    const visibleEvents = events.filter((e) => {
+      if (e.status !== "draft") return true; 
+      
+      // If draft, check permissions
+      const isOwner = currentUser?.userId === e.organizerId;
+      return isOwner || isUserAdmin;
+    });
+    
+    // Sort chronologically by start date
+    visibleEvents.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    
+    return Ok(visibleEvents);
+  }
+
+  async publishEvent(
+    eventId: string,
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventSummary, EventError>> {
+    const eventResult = await this.repo.findById(eventId);
+    if (eventResult.ok === false) return Err(eventResult.value);
+    
+    const event = eventResult.value;
+    if (!event) return Err(EventNotFound("Event not found."));
+
+    const isOwner = currentUser?.userId === event.organizerId;
+    const isAdmin = currentUser?.role === "admin";
+    
+    if (!isOwner && !isAdmin) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    if (event.status !== "draft") {
+      return Err(ValidationError("Only draft events can be published."));
+    }
+
+    event.status = "published";
+    event.updatedAt = new Date().toISOString();
+
+    const updateResult = await this.repo.update(event);
+    if (updateResult.ok === false) return Err(updateResult.value);
+
+    return Ok(toEventSummary(updateResult.value));
   }
 }
 
