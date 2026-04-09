@@ -3,6 +3,7 @@ import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
+import { IEventController } from "./event/EventController";
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -35,6 +36,7 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
+    private readonly eventController: IEventController,
     private readonly logger: ILoggingService,
   ) {
     this.app = express();
@@ -249,7 +251,73 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
+        await this.eventController.showDashboard(res, sessionStore(req));
+      }),
+    );
+
+    // ── Event routes ─────────────────────────────────────────────────
+
+    this.app.get(
+      "/events/create",
+      asyncHandler(async (req, res) => {
+        // Only "admin" and "staff" (organizers) can create events
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can create events.")) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showCreateForm(res, browserSession);
+      }),
+    );
+
+    this.app.get(
+      "/events/:id",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const session = sessionStore(req);
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        
+        await this.eventController.showEventDetail(res, eventId, session);
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/publish",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can publish events.")) {
+          return;
+        }
+
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        await this.eventController.publishEvent(res, eventId, sessionStore(req));
+      }),
+    );
+
+    this.app.post(
+      "/events/create",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can create events.")) {
+          return;
+        }
+
+        const session = sessionStore(req);
+        
+        await this.eventController.createEventFromForm(
+          res,
+          {
+            title: typeof req.body.title === "string" ? req.body.title : "",
+            description: typeof req.body.description === "string" ? req.body.description : "",
+            location: typeof req.body.location === "string" ? req.body.location : "",
+            category: typeof req.body.category === "string" ? req.body.category : "",
+            startDate: typeof req.body.startDate === "string" ? req.body.startDate : "",
+            endDate: typeof req.body.endDate === "string" ? req.body.endDate : "",
+            capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
+          },
+          session,
+        );
       }),
     );
 
@@ -272,7 +340,8 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
+  eventController: IEventController,
   logger: ILoggingService,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(authController, eventController, logger);
 }
