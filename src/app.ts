@@ -271,6 +271,44 @@ class ExpressApp implements IApp {
     );
 
     this.app.get(
+      "/events/:id/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can edit events.")) {
+          return;
+        }
+
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        await this.eventController.showEditForm(res, eventId, sessionStore(req));
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can edit events.")) {
+          return;
+        }
+
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+
+        await this.eventController.updateEventFromForm(
+          res,
+          eventId,
+          {
+            title: typeof req.body.title === "string" ? req.body.title : "",
+            description: typeof req.body.description === "string" ? req.body.description : "",
+            location: typeof req.body.location === "string" ? req.body.location : "",
+            category: typeof req.body.category === "string" ? req.body.category : "",
+            startDate: typeof req.body.startDate === "string" ? req.body.startDate : "",
+            endDate: typeof req.body.endDate === "string" ? req.body.endDate : "",
+            capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
+          },
+          sessionStore(req),
+        );
+      }),
+    );
+
+    this.app.get(
       "/events/:id",
       asyncHandler(async (req, res) => {
         if (!this.requireAuthenticated(req, res)) {

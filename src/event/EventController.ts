@@ -1,5 +1,5 @@
 import type { Response } from "express";
-import { type IEventService, type CreateEventInput } from "./EventService";
+import { type IEventService, type CreateEventInput, type UpdateEventInput } from "./EventService";
 import {
   touchAppSession,
   getAuthenticatedUser,
@@ -39,6 +39,21 @@ export interface IEventController {
     input: CreateEventInput,
     store: AppSessionStore,
   ): Promise<void>;
+
+  showEditForm(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+    input?: Partial<UpdateEventInput>,
+    pageError?: string | null,
+  ): Promise<void>;
+
+  updateEventFromForm(
+    res: Response,
+    eventId: string,
+    input: UpdateEventInput,
+    store: AppSessionStore,
+  ): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -50,6 +65,8 @@ class EventController implements IEventController {
   private mapErrorStatus(error: EventError): number {
     if (error.name === "ValidationError") return 400;
     if (error.name === "EventNotFound") return 404;
+    if (error.name === "EventNotAuthorized") return 403;
+    if (error.name === "EventInvalidState") return 409;
     return 500;
   }
 
@@ -179,6 +196,121 @@ class EventController implements IEventController {
     
     // Redirect to home dashboard directly per user request
     res.redirect("/home"); 
+  }
+
+  async showEditForm(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+    input: Partial<UpdateEventInput> = {},
+    pageError: string | null = null,
+  ): Promise<void> {
+    const session = touchAppSession(store);
+    const currentUser = getAuthenticatedUser(store);
+
+    // Load the event so we can both check permission and pre-fill the form.
+    // We deliberately use the service (not the repo directly) so the draft
+    // visibility rule and any other business logic is applied consistently.
+    const result = await this.service.getEventDetails(eventId, currentUser);
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session,
+      });
+      return;
+    }
+
+    const event = result.value;
+
+    // Check permission here so the user gets a real 403 instead of seeing
+    // the form and only being told no after they hit Save.
+    const isOwner = currentUser?.userId === event.organizerId;
+    const isAdmin = currentUser?.role === "admin";
+    if (!isOwner && !isAdmin) {
+      res.status(403).render("partials/error", {
+        message: "You do not have permission to edit this event.",
+        session,
+      });
+      return;
+    }
+
+    if (event.status === "cancelled") {
+      res.status(409).render("partials/error", {
+        message: "Cancelled events cannot be edited.",
+        session,
+      });
+      return;
+    }
+
+    // Pre-fill the form with the current event values, unless the caller
+    // passed `input` (which happens when re-rendering after a validation error).
+    const formInput: Partial<UpdateEventInput> = {
+      title: input.title ?? event.title,
+      description: input.description ?? event.description,
+      location: input.location ?? event.location,
+      category: input.category ?? event.category,
+      startDate: input.startDate ?? event.startDate,
+      endDate: input.endDate ?? event.endDate,
+      capacity: input.capacity ?? String(event.capacity),
+    };
+
+    res.render("event/edit", {
+      session,
+      event,
+      input: formInput,
+      pageError,
+    });
+  }
+
+  async updateEventFromForm(
+    res: Response,
+    eventId: string,
+    input: UpdateEventInput,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const currentUser = getAuthenticatedUser(store);
+
+    if (!currentUser) {
+      this.logger.error("Attempted to update event without authenticated user");
+      res.redirect("/login");
+      return;
+    }
+
+    const result = await this.service.updateEvent(eventId, input, currentUser);
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `Update event failed: ${error.message}`);
+
+      // For not-found / not-authorized / invalid-state, the form itself
+      // shouldn't be re-rendered — the user has no useful action from here.
+      // Show a plain error page instead.
+      if (
+        error.name === "EventNotFound" ||
+        error.name === "EventNotAuthorized" ||
+        error.name === "EventInvalidState"
+      ) {
+        res.status(status).render("partials/error", {
+          message: error.message,
+          session: touchAppSession(store),
+        });
+        return;
+      }
+
+      // For ValidationError, re-render the form with the user's input
+      // so they can fix it without retyping everything.
+      res.status(status);
+      await this.showEditForm(res, eventId, store, input, error.message);
+      return;
+    }
+
+    this.logger.info(`Updated event ${result.value.id} "${result.value.title}"`);
+    res.redirect(`/events/${result.value.id}`);
   }
 }
 

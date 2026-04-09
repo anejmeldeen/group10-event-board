@@ -6,6 +6,8 @@
 export type EventError =
   | { name: "ValidationError"; message: string }
   | { name: "EventNotFound"; message: string }
+  | { name: "EventNotAuthorized"; message: string }
+  | { name: "EventInvalidState"; message: string }
   | { name: "UnexpectedDependencyError"; message: string };
 
 export const ValidationError = (message: string): EventError => ({
@@ -15,6 +17,16 @@ export const ValidationError = (message: string): EventError => ({
 
 export const EventNotFound = (message: string): EventError => ({
   name: "EventNotFound",
+  message,
+});
+
+export const EventNotAuthorized = (message: string): EventError => ({
+  name: "EventNotAuthorized",
+  message,
+});
+
+export const EventInvalidState = (message: string): EventError => ({
+  name: "EventInvalidState",
   message,
 });
 

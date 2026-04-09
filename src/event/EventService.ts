@@ -7,7 +7,7 @@
 
 import { randomUUID } from "node:crypto";
 import { Ok, Err, type Result } from "../lib/result";
-import { ValidationError, EventNotFound, type EventError } from "./errors";
+import { ValidationError, EventNotFound, EventNotAuthorized, EventInvalidState, type EventError } from "./errors";
 import type { IEventRepository } from "./EventRepository";
 import type { IEventRecord, IEventSummary } from "./Event";
 import { toEventSummary } from "./Event";
@@ -22,6 +22,17 @@ export interface CreateEventInput {
   startDate: string;   // Expected: ISO 8601 or datetime-local format
   endDate: string;     // Expected: ISO 8601 or datetime-local format
   capacity: string;    // Numeric string; empty or "0" means unlimited
+}
+
+/** Raw input from the edit form. Same shape as CreateEventInput — the fields a user can change are identical. */
+export interface UpdateEventInput {
+  title: string;
+  description: string;
+  location: string;
+  category: string;
+  startDate: string;
+  endDate: string;
+  capacity: string;
 }
 
 /** Identity of the organizer, extracted from the session — never from the form. */
@@ -47,6 +58,12 @@ export interface IEventService {
 
   publishEvent(
     eventId: string,
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventSummary, EventError>>;
+  
+  updateEvent(
+    eventId: string,
+    input: UpdateEventInput,
     currentUser: IAuthenticatedUserSession | null,
   ): Promise<Result<IEventSummary, EventError>>;
 }
@@ -302,6 +319,80 @@ class EventService implements IEventService {
     if (updateResult.ok === false) return Err(updateResult.value);
 
     return Ok(toEventSummary(updateResult.value));
+  }
+
+  async updateEvent(
+    eventId: string,
+    input: UpdateEventInput,
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventSummary, EventError>> {
+    // 1. Load the event
+    const eventResult = await this.repo.findById(eventId);
+    if (eventResult.ok === false) return Err(eventResult.value);
+
+    const event = eventResult.value;
+    if (!event) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    // 2. Check permission: organizer or admin only
+    const isOwner = currentUser?.userId === event.organizerId;
+    const isAdmin = currentUser?.role === "admin";
+    if (!isOwner && !isAdmin) {
+      return Err(EventNotAuthorized("You do not have permission to edit this event."));
+    }
+
+    // 3. Check state: cancelled events cannot be edited
+    if (event.status === "cancelled") {
+      return Err(EventInvalidState("Cancelled events cannot be edited."));
+    }
+
+    // 4. Validate input — reuse the same helpers as createEvent
+    const titleErr = validateTitle(input.title);
+    if (titleErr) return Err(titleErr);
+
+    const descErr = validateDescription(input.description);
+    if (descErr) return Err(descErr);
+
+    const locErr = validateLocation(input.location);
+    if (locErr) return Err(locErr);
+
+    const catErr = validateCategory(input.category);
+    if (catErr) return Err(catErr);
+
+    const startResult = parseAndValidateDate(input.startDate, "Start date");
+    if (startResult.ok === false) return Err(startResult.value);
+    const startDate = startResult.value;
+
+    const endResult = parseAndValidateDate(input.endDate, "End date");
+    if (endResult.ok === false) return Err(endResult.value);
+    const endDate = endResult.value;
+
+    const rangeErr = validateDateRange(startDate, endDate);
+    if (rangeErr) return Err(rangeErr);
+
+    const capResult = parseAndValidateCapacity(input.capacity);
+    if (capResult.ok === false) return Err(capResult.value);
+    const capacity = capResult.value;
+
+    // 5. Build the updated record
+    const updatedEvent: IEventRecord = {
+      ...event,
+      title: input.title.trim(),
+      description: input.description.trim(),
+      location: input.location.trim(),
+      category: input.category.trim(),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      capacity,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // 6. Persist
+    const saveResult = await this.repo.update(updatedEvent);
+    if (saveResult.ok === false) return Err(saveResult.value);
+
+    return Ok(toEventSummary(saveResult.value));
   }
 }
 
