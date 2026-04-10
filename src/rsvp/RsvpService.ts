@@ -139,7 +139,7 @@ class RsvpService implements IRsvpService {
 
       return Ok({
         canRsvp: false,
-        currentStatus: "none",
+        currentStatus: "none" as const,
         goingCount,
         capacity: eventCapacity,
       });
@@ -158,7 +158,7 @@ class RsvpService implements IRsvpService {
 
     return Ok({
       canRsvp: true,
-      currentStatus: existingResult.value?.status ?? "none",
+      currentStatus: existingResult.value?.status ?? ("none" as const),
       goingCount: countResult.value,
       capacity: eventCapacity,
     });
