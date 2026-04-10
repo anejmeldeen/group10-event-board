@@ -21,6 +21,7 @@ import { ILoggingService } from "./service/LoggingService";
 
 type AsyncRequestHandler = RequestHandler;
 
+// test comment
 function asyncHandler(fn: AsyncRequestHandler) {
   return function wrapped(req: Request, res: Response, next: (value?: unknown) => void) {
     return Promise.resolve(fn(req, res, next)).catch(next);
