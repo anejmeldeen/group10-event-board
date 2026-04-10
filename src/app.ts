@@ -341,7 +341,8 @@ class ExpressApp implements IApp {
           return;
         }
 
-        const session = sessionStore(req);
+        const store = sessionStore(req);
+        const isHtmx = this.isHtmxRequest(req);
         
         await this.eventController.createEventFromForm(
           res,
@@ -354,7 +355,8 @@ class ExpressApp implements IApp {
             endDate: typeof req.body.endDate === "string" ? req.body.endDate : "",
             capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
           },
-          session,
+          store,
+          isHtmx,
         );
       }),
     );

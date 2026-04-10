@@ -7,7 +7,20 @@
 
 import { randomUUID } from "node:crypto";
 import { Ok, Err, type Result } from "../lib/result";
-import { ValidationError, EventNotFound, EventNotAuthorized, EventInvalidState, type EventError } from "./errors";
+import {
+  MissingRequiredField,
+  FieldTooShort,
+  FieldTooLong,
+  InvalidDateFormat,
+  EndBeforeStart,
+  StartDateInPast,
+  InvalidCapacity,
+  ValidationError,
+  EventNotFound,
+  EventNotAuthorized,
+  EventInvalidState,
+  type EventError,
+} from "./errors";
 import type { IEventRepository } from "./EventRepository";
 import type { IEventRecord, IEventSummary } from "./Event";
 import { toEventSummary } from "./Event";
@@ -79,13 +92,13 @@ const MAX_CAPACITY = 100_000;
 function validateTitle(title: string): EventError | null {
   const trimmed = title.trim();
   if (!trimmed) {
-    return ValidationError("Title is required.");
+    return MissingRequiredField("Title is required.", "title");
   }
   if (trimmed.length < 3) {
-    return ValidationError("Title must be at least 3 characters.");
+    return FieldTooShort("Title must be at least 3 characters.", "title");
   }
   if (trimmed.length > MAX_TITLE_LENGTH) {
-    return ValidationError(`Title must be at most ${MAX_TITLE_LENGTH} characters.`);
+    return FieldTooLong(`Title must be at most ${MAX_TITLE_LENGTH} characters.`, "title");
   }
   return null;
 }
@@ -93,13 +106,13 @@ function validateTitle(title: string): EventError | null {
 function validateDescription(description: string): EventError | null {
   const trimmed = description.trim();
   if (!trimmed) {
-    return ValidationError("Description is required.");
+    return MissingRequiredField("Description is required.", "description");
   }
   if (trimmed.length < 10) {
-    return ValidationError("Description must be at least 10 characters.");
+    return FieldTooShort("Description must be at least 10 characters.", "description");
   }
   if (trimmed.length > MAX_DESCRIPTION_LENGTH) {
-    return ValidationError(`Description must be at most ${MAX_DESCRIPTION_LENGTH} characters.`);
+    return FieldTooLong(`Description must be at most ${MAX_DESCRIPTION_LENGTH} characters.`, "description");
   }
   return null;
 }
@@ -107,10 +120,10 @@ function validateDescription(description: string): EventError | null {
 function validateLocation(location: string): EventError | null {
   const trimmed = location.trim();
   if (!trimmed) {
-    return ValidationError("Location is required.");
+    return MissingRequiredField("Location is required.", "location");
   }
   if (trimmed.length > MAX_LOCATION_LENGTH) {
-    return ValidationError(`Location must be at most ${MAX_LOCATION_LENGTH} characters.`);
+    return FieldTooLong(`Location must be at most ${MAX_LOCATION_LENGTH} characters.`, "location");
   }
   return null;
 }
@@ -118,10 +131,10 @@ function validateLocation(location: string): EventError | null {
 function validateCategory(category: string): EventError | null {
   const trimmed = category.trim();
   if (!trimmed) {
-    return ValidationError("Category is required.");
+    return MissingRequiredField("Category is required.", "category");
   }
   if (trimmed.length > MAX_CATEGORY_LENGTH) {
-    return ValidationError(`Category must be at most ${MAX_CATEGORY_LENGTH} characters.`);
+    return FieldTooLong(`Category must be at most ${MAX_CATEGORY_LENGTH} characters.`, "category");
   }
   return null;
 }
@@ -129,12 +142,12 @@ function validateCategory(category: string): EventError | null {
 function parseAndValidateDate(raw: string, fieldName: string): Result<Date, EventError> {
   const trimmed = raw.trim();
   if (!trimmed) {
-    return Err(ValidationError(`${fieldName} is required.`));
+    return Err(MissingRequiredField(`${fieldName} is required.`, fieldName.toLowerCase().replace(/ /g, "")));
   }
 
   const parsed = new Date(trimmed);
   if (isNaN(parsed.getTime())) {
-    return Err(ValidationError(`${fieldName} is not a valid date.`));
+    return Err(InvalidDateFormat(`${fieldName} is not a valid date.`, fieldName.toLowerCase().replace(/ /g, "")));
   }
 
   return Ok(parsed);
@@ -142,14 +155,14 @@ function parseAndValidateDate(raw: string, fieldName: string): Result<Date, Even
 
 function validateDateRange(start: Date, end: Date): EventError | null {
   if (end <= start) {
-    return ValidationError("End date must be after the start date.");
+    return EndBeforeStart("End date must be after the start date.");
   }
 
   // Events should not start in the past (allow 1-minute clock skew)
   const now = new Date();
   const oneMinuteAgo = new Date(now.getTime() - 60_000);
   if (start < oneMinuteAgo) {
-    return ValidationError("Start date cannot be in the past.");
+    return StartDateInPast("Start date cannot be in the past.");
   }
 
   return null;
@@ -165,10 +178,10 @@ function parseAndValidateCapacity(raw: string): Result<number, EventError> {
 
   const num = Number(trimmed);
   if (!Number.isInteger(num) || num < 0) {
-    return Err(ValidationError("Capacity must be a non-negative whole number."));
+    return Err(InvalidCapacity("Capacity must be a non-negative whole number."));
   }
   if (num > MAX_CAPACITY) {
-    return Err(ValidationError(`Capacity must be at most ${MAX_CAPACITY}.`));
+    return Err(InvalidCapacity(`Capacity must be at most ${MAX_CAPACITY}.`));
   }
 
   return Ok(num);
@@ -309,7 +322,7 @@ class EventService implements IEventService {
     }
 
     if (event.status !== "draft") {
-      return Err(ValidationError("Only draft events can be published."));
+      return Err(EventInvalidState("Only draft events can be published."));
     }
 
     event.status = "published";
