@@ -4,6 +4,7 @@ import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
 import { IEventController } from "./event/EventController";
+import { IRsvpController } from "./rsvp/RsvpController";
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -38,6 +39,7 @@ class ExpressApp implements IApp {
   constructor(
     private readonly authController: IAuthController,
     private readonly eventController: IEventController,
+    private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
   ) {
     this.app = express();
@@ -284,6 +286,18 @@ class ExpressApp implements IApp {
     );
 
     this.app.post(
+      "/events/:id/rsvp",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        await this.rsvpController.toggleRsvp(res, eventId, sessionStore(req));
+      }),
+    );
+
+    this.app.post(
       "/events/:id/edit",
       asyncHandler(async (req, res) => {
         if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can edit events.")) {
@@ -380,7 +394,8 @@ class ExpressApp implements IApp {
 export function CreateApp(
   authController: IAuthController,
   eventController: IEventController,
+  rsvpController: IRsvpController,
   logger: ILoggingService,
 ): IApp {
-  return new ExpressApp(authController, eventController, logger);
+  return new ExpressApp(authController, eventController, rsvpController, logger);
 }
