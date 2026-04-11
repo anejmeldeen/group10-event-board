@@ -8,6 +8,7 @@ import {
 } from "../session/AppSession";
 import type { ILoggingService } from "../service/LoggingService";
 import type { EventError } from "./errors";
+import type { IRsvpController } from "../rsvp/RsvpController";
 
 export interface IEventController {
   showCreateForm(
@@ -60,6 +61,7 @@ class EventController implements IEventController {
   constructor(
     private readonly service: IEventService,
     private readonly logger: ILoggingService,
+    private readonly rsvpController?: IRsvpController,
   ) {}
 
   private mapErrorStatus(error: EventError): number {
@@ -87,9 +89,6 @@ class EventController implements IEventController {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
     
-    // Safety check - the route should have already guarded this, but it also allows optional auth handling?
-    // Wait, prompt says: "Any authenticated user can view a page" so currentUser is guaranteed if route is guarded
-    
     const result = await this.service.getEventDetails(eventId, currentUser);
 
     if (result.ok === false) {
@@ -102,10 +101,19 @@ class EventController implements IEventController {
       return;
     }
 
+    const event = result.value;
+
+    // Build RSVP view data if the RSVP controller is available
+    let rsvpView: { canRsvp: boolean; currentStatus: string; goingCount: number; capacity: number } = { canRsvp: false, currentStatus: "none", goingCount: event.attendeeCount, capacity: event.capacity };
+    if (this.rsvpController) {
+      rsvpView = await this.rsvpController.getRsvpView(eventId, store, event.status, event.organizerId, event.capacity);
+    }
+
     res.render("event/detail", { 
       session, 
-      event: result.value,
-      user: currentUser 
+      event,
+      user: currentUser,
+      rsvpView,
     });
   }
 
@@ -317,6 +325,7 @@ class EventController implements IEventController {
 export function CreateEventController(
   service: IEventService,
   logger: ILoggingService,
+  rsvpController?: IRsvpController,
 ): IEventController {
-  return new EventController(service, logger);
+  return new EventController(service, logger, rsvpController);
 }
