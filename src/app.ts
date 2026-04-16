@@ -3,8 +3,6 @@ import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
-import { IEventController } from "./event/EventController";
-import { IRsvpController } from "./rsvp/RsvpController";
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -22,7 +20,6 @@ import { ILoggingService } from "./service/LoggingService";
 
 type AsyncRequestHandler = RequestHandler;
 
-// test comment
 function asyncHandler(fn: AsyncRequestHandler) {
   return function wrapped(req: Request, res: Response, next: (value?: unknown) => void) {
     return Promise.resolve(fn(req, res, next)).catch(next);
@@ -38,8 +35,6 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
-    private readonly eventController: IEventController,
-    private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
   ) {
     this.app = express();
@@ -254,156 +249,10 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        await this.eventController.showDashboard(res, sessionStore(req));
+        res.render("home", { session: browserSession, pageError: null });
       }),
     );
 
-    this.app.get(
-      "/organizer/dashboard",
-      asyncHandler(async (req, res) => {
-        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can access this dashboard.")) {
-          return;
-        }
-
-        await this.eventController.showOrganizerDashboard(res, sessionStore(req));
-      }),
-    );
-
-    // ── Event routes ─────────────────────────────────────────────────
-
-    // Organizer dashboard
-
-    this.app.get("/events/manage", (req, res) =>
-      this.eventController.getOrganizerDashboard(res, req.session)
-    );
-
-    this.app.get(
-      "/events/create",
-      asyncHandler(async (req, res) => {
-        // Only "admin" and "staff" (organizers) can create events
-        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can create events.")) {
-          return;
-        }
-
-        const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showCreateForm(res, browserSession);
-      }),
-    );
-
-    this.app.get(
-      "/events/:id/edit",
-      asyncHandler(async (req, res) => {
-        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can edit events.")) {
-          return;
-        }
-
-        const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        await this.eventController.showEditForm(res, eventId, sessionStore(req));
-      }),
-    );
-
-        this.app.get(
-      "/events/:id",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const session = sessionStore(req);
-        const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        
-        await this.eventController.showEventDetail(res, eventId, session);
-      }),
-    );
-
-    this.app.post(
-      "/events/:id/rsvp",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        await this.rsvpController.toggleRsvp(res, eventId, sessionStore(req));
-      }),
-    );
-
-    this.app.post(
-      "/events/:id/edit",
-      asyncHandler(async (req, res) => {
-        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can edit events.")) {
-          return;
-        }
-
-        const eventId = typeof req.params.id === "string" ? req.params.id : "";
-
-        await this.eventController.updateEventFromForm(
-          res,
-          eventId,
-          {
-            title: typeof req.body.title === "string" ? req.body.title : "",
-            description: typeof req.body.description === "string" ? req.body.description : "",
-            location: typeof req.body.location === "string" ? req.body.location : "",
-            category: typeof req.body.category === "string" ? req.body.category : "",
-            startDate: typeof req.body.startDate === "string" ? req.body.startDate : "",
-            endDate: typeof req.body.endDate === "string" ? req.body.endDate : "",
-            capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
-          },
-          sessionStore(req),
-        );
-      }),
-    );
-
-    this.app.post(
-      "/events/:id/publish",
-      asyncHandler(async (req, res) => {
-        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can publish events.")) {
-          return;
-        }
-
-        const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        await this.eventController.publishEvent(res, eventId, sessionStore(req));
-      }),
-    );
-
-    this.app.post(
-      "/events/create",
-      asyncHandler(async (req, res) => {
-        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can create events.")) {
-          return;
-        }
-
-        const session = sessionStore(req);
-        
-        await this.eventController.createEventFromForm(
-          res,
-          {
-            title: typeof req.body.title === "string" ? req.body.title : "",
-            description: typeof req.body.description === "string" ? req.body.description : "",
-            location: typeof req.body.location === "string" ? req.body.location : "",
-            category: typeof req.body.category === "string" ? req.body.category : "",
-            startDate: typeof req.body.startDate === "string" ? req.body.startDate : "",
-            endDate: typeof req.body.endDate === "string" ? req.body.endDate : "",
-            capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
-          },
-          session,
-        );
-      }),
-    );
-
-    // ── RSVP dashboard ─────────────────────────────────────────────
-
-    this.app.get(
-      "/rsvps/me",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        await this.rsvpController.getMyRsvpDashboard(res, sessionStore(req));
-      }),
-    );
-    
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -423,9 +272,7 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
-  eventController: IEventController,
-  rsvpController: IRsvpController,
   logger: ILoggingService,
 ): IApp {
-  return new ExpressApp(authController, eventController, rsvpController, logger);
+  return new ExpressApp(authController, logger);
 }
