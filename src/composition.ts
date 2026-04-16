@@ -8,6 +8,16 @@ import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
 
+// Event
+import { CreateInMemoryEventRepository } from "./event/InMemoryEventRepository";
+import { CreateEventService } from "./event/EventService";
+import { CreateEventController } from "./event/EventController";
+
+// RSVP
+import { CreateInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+import { CreateRsvpService } from "./rsvp/RsvpService";
+import { CreateRsvpController } from "./rsvp/RsvpController";
+
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
 
@@ -18,5 +28,16 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  return CreateApp(authController, resolvedLogger);
+  // Event + RSVP wiring
+  const eventRepository = CreateInMemoryEventRepository();
+  const rsvpRepository = CreateInMemoryRsvpRepository();
+
+  // Share repos across event and RSVP services
+  const eventService = CreateEventService(eventRepository, rsvpRepository);
+  const rsvpService = CreateRsvpService(rsvpRepository, eventRepository);
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
+
+  const eventController = CreateEventController(eventService, resolvedLogger, rsvpController);
+  
+  return CreateApp(authController, eventController, rsvpController, resolvedLogger);
 }
