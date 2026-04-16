@@ -258,6 +258,17 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.get(
+      "/organizer/dashboard",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can access this dashboard.")) {
+          return;
+        }
+
+        await this.eventController.showOrganizerDashboard(res, sessionStore(req));
+      }),
+    );
+
     // ── Event routes ─────────────────────────────────────────────────
 
     // Organizer dashboard
@@ -380,7 +391,8 @@ class ExpressApp implements IApp {
       }),
     );
 
-    // RSVP dashboard – my RSVPs
+    // ── RSVP dashboard ─────────────────────────────────────────────
+
     this.app.get(
       "/rsvps/me",
       asyncHandler(async (req, res) => {

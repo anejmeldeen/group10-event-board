@@ -361,6 +361,42 @@ class EventController implements IEventController {
     this.logger.info(`Updated event ${result.value.id} "${result.value.title}"`);
     res.redirect(`/events/${result.value.id}`);
   }
+
+  async showOrganizerDashboard(
+    res: Response,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const session = touchAppSession(store);
+    const currentUser = getAuthenticatedUser(store);
+
+    if (!currentUser) {
+      res.redirect("/login");
+      return;
+    }
+
+    const result = await this.service.getOrganizerDashboard(currentUser);
+
+    if (result.ok === false) {
+      res.render("event/organizer-dashboard", {
+        session,
+        published: [],
+        draft: [],
+        past: [],
+        user: currentUser,
+        pageError: "Unable to load your events.",
+      });
+      return;
+    }
+
+    res.render("event/organizer-dashboard", {
+      session,
+      published: result.value.published,
+      draft: result.value.draft,
+      past: result.value.past,
+      user: currentUser,
+      pageError: null,
+    });
+  }
 }
 
 export function CreateEventController(
