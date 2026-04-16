@@ -14,24 +14,6 @@ import { toEventSummary } from "./Event";
 import type { IAuthenticatedUserSession } from "../session/AppSession";
 import type { IRsvpRepository } from "../rsvp/RsvpRepository";
 
-/** A single event entry on the organizer dashboard. */
-export interface IOrganizerDashboardEvent {
-  id: string;
-  title: string;
-  startDate: string;
-  category: string;
-  attendeeCount: number;
-  capacity: number;
-  organizerName: string;
-  status: string;
-}
-
-/** Events grouped by status for the organizer dashboard. */
-export interface IOrganizerDashboardData {
-  published: IOrganizerDashboardEvent[];
-  draft: IOrganizerDashboardEvent[];
-  past: IOrganizerDashboardEvent[];
-}
 
 /** Raw input coming from the form (all strings). */
 export interface CreateEventInput {

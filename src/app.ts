@@ -265,7 +265,7 @@ class ExpressApp implements IApp {
           return;
         }
 
-        await this.eventController.showOrganizerDashboard(res, sessionStore(req));
+        await this.eventController.getOrganizerDashboard(res, sessionStore(req));
       }),
     );
 

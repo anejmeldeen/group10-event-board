@@ -1,53 +1,138 @@
-<h1>Organizer Dashboard</h1>
-
-<h2>Draft Events</h2>
-<% if (draft.length === 0) { %>
-    <p>No draft events.</p>
-<% } else { %>
-    <ul>
-        <% draft.forEach(event => { %>
-            <li>
-                <strong><%= event.title %></strong>
-                (<%= event.category %>)<br/>
-                <%= event.startDate %> → <%= event.endDate %><br/>
-                Attendees: <%= event.attendeeCount %> / <%= event.capacity %>
-            </li>
-        <% }) %>
-    </ul>
+<% if (pageError) { %>
+  <%- include("../partials/error", { message: pageError }) %>
 <% } %>
 
-<hr/>
+<div class="flex items-center justify-between mb-8">
+  <div>
+    <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Organizer Dashboard</h1>
+    <p class="text-slate-500 mt-1">Manage your events across all stages.</p>
+  </div>
+  <a
+    href="/events/create"
+    class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm transition-colors no-underline"
+  >
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    Create Event
+  </a>
+</div>
 
-<h2>Published Events</h2>
-<% if (published.length === 0) { %>
-    <p>No published events.</p>
+<% if (!published.length && !draft.length && !cancelledOrPast.length) { %>
+  <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
+    <svg class="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+    <h3 class="text-lg font-bold text-slate-900">No events found</h3>
+    <p class="text-slate-500 mt-1">You haven't created any events yet. Click "Create Event" to get started.</p>
+  </div>
 <% } else { %>
-    <ul>
-        <% published.forEach(event => { %>
-            <li>
-                <strong><%= event.title %></strong>
-                (<%= event.category %>)<br/>
-                <%= event.startDate %> → <%= event.endDate %><br/>
-                Attendees: <%= event.attendeeCount %> / <%= event.capacity %>
-            </li>
-        <% }) %>
-    </ul>
-<% } %>
+  <div class="space-y-10">
 
-<hr/>
+    <!-- Published Section -->
+    <% if (published.length > 0) { %>
+      <section>
+        <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+          Published / Live
+          <span class="text-sm font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full"><%= published.length %></span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <% published.forEach(event => { %>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col hover:shadow-md transition-shadow">
+              <div class="flex justify-between items-start mb-2">
+                <a href="/events/<%= event.id %>" class="text-lg font-bold text-slate-900 hover:text-blue-600 no-underline truncate pr-4">
+                  <%= event.title %>
+                </a>
+              </div>
+              <div class="text-sm text-slate-500 space-y-1 mb-4 flex-grow">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                  <%= new Date(event.startDate).toLocaleString() %>
+                </div>
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                  <%= event.category %>
+                </div>
+                <div class="flex items-center gap-2 font-medium text-slate-700 mt-2">
+                  <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                  <%= event.attendeeCount %> RSVPs
+                  <% if (event.capacity > 0) { %> / <%= event.capacity %> <% } %>
+                </div>
+              </div>
+              <div class="flex gap-2 pt-3 border-t border-slate-100">
+                <a href="/events/<%= event.id %>" class="flex-1 text-center py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-md transition-colors no-underline">View</a>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
 
-<h2>Cancelled / Past Events</h2>
-<% if (cancelledOrPast.length === 0) { %>
-    <p>No past or cancelled events.</p>
-<% } else { %>
-    <ul>
-        <% cancelledOrPast.forEach(event => { %>
-            <li>
-                <strong><%= event.title %></strong>
-                (<%= event.category %>)<br/>
-                <%= event.startDate %> → <%= event.endDate %><br/>
-                Attendees: <%= event.attendeeCount %> / <%= event.capacity %>
-            </li>
-        <% }) %>
-    </ul>
+    <!-- Draft Section -->
+    <% if (draft.length > 0) { %>
+      <section>
+        <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+          Drafts
+          <span class="text-sm font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full"><%= draft.length %></span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <% draft.forEach(event => { %>
+            <div class="bg-amber-50 rounded-xl border border-amber-200 p-5 flex flex-col relative overflow-hidden">
+              <div class="absolute top-0 right-0 px-2 py-1 bg-amber-200 text-amber-800 text-[10px] font-bold uppercase rounded-bl-lg">Not Visible</div>
+              <div class="flex justify-between items-start mb-2 pr-12">
+                <a href="/events/<%= event.id %>" class="text-lg font-bold text-slate-900 hover:text-blue-600 no-underline truncate">
+                  <%= event.title %>
+                </a>
+              </div>
+              <div class="text-sm text-slate-500 space-y-1 mb-4 flex-grow">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                  <%= new Date(event.startDate).toLocaleString() %>
+                </div>
+              </div>
+              <div class="flex gap-2 pt-3 border-t border-amber-200/60 mt-auto">
+                <a href="/events/<%= event.id %>/edit" class="flex-1 text-center py-1.5 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold rounded-md transition-colors no-underline">Edit</a>
+                <form method="POST" action="/events/<%= event.id %>/publish" class="flex-1 m-0">
+                  <button type="submit" class="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-md transition-colors cursor-pointer">
+                    Publish
+                  </button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
+    <!-- Past/Cancelled Section -->
+    <% if (cancelledOrPast.length > 0) { %>
+      <section>
+        <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="w-3 h-3 rounded-full bg-slate-400"></span>
+          Past & Cancelled
+          <span class="text-sm font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full"><%= cancelledOrPast.length %></span>
+        </h2>
+        <div class="space-y-3">
+          <% cancelledOrPast.forEach(event => { %>
+            <div class="bg-white rounded-lg border border-slate-200 p-4 flex items-center justify-between opacity-75 hover:opacity-100 transition-opacity">
+              <div>
+                <a href="/events/<%= event.id %>" class="font-bold text-slate-900 hover:text-blue-600 no-underline">
+                  <%= event.title %>
+                </a>
+                <div class="text-xs text-slate-500 flex gap-3 mt-1">
+                  <span><%= new Date(event.startDate).toLocaleDateString() %></span>
+                  <span>•</span>
+                  <span><%= event.attendeeCount %> RSVPs</span>
+                  <% if (event.status === 'cancelled') { %>
+                    <span>•</span>
+                    <span class="text-rose-600 font-bold uppercase text-[10px] tracking-wider">Cancelled</span>
+                  <% } %>
+                </div>
+              </div>
+              <a href="/events/<%= event.id %>" class="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded px-3 py-1 bg-slate-50 no-underline">View</a>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
+  </div>
 <% } %>
