@@ -13,6 +13,25 @@ import type { IEventRecord, IEventSummary } from "./Event";
 import { toEventSummary } from "./Event";
 import type { IAuthenticatedUserSession } from "../session/AppSession";
 
+/** A single event entry on the organizer dashboard. */
+export interface IOrganizerDashboardEvent {
+  id: string;
+  title: string;
+  startDate: string;
+  category: string;
+  attendeeCount: number;
+  capacity: number;
+  organizerName: string;
+  status: string;
+}
+
+/** Events grouped by status for the organizer dashboard. */
+export interface IOrganizerDashboardData {
+  published: IOrganizerDashboardEvent[];
+  draft: IOrganizerDashboardEvent[];
+  past: IOrganizerDashboardEvent[];
+}
+
 /** Raw input coming from the form (all strings). */
 export interface CreateEventInput {
   title: string;
@@ -66,6 +85,10 @@ export interface IEventService {
     input: UpdateEventInput,
     currentUser: IAuthenticatedUserSession | null,
   ): Promise<Result<IEventSummary, EventError>>;
+
+  getOrganizerDashboard(
+    currentUser: IAuthenticatedUserSession,
+  ): Promise<Result<IOrganizerDashboardData, EventError>>;
 }
 
 // ── Validation helpers ───────────────────────────────────────────────
@@ -393,6 +416,57 @@ class EventService implements IEventService {
     if (saveResult.ok === false) return Err(saveResult.value);
 
     return Ok(toEventSummary(saveResult.value));
+  }
+
+  async getOrganizerDashboard(
+    currentUser: IAuthenticatedUserSession,
+  ): Promise<Result<IOrganizerDashboardData, EventError>> {
+    // Admin sees all events; staff sees only their own
+    const eventsResult = currentUser.role === "admin"
+      ? await this.repo.findAll()
+      : await this.repo.findByOrganizerId(currentUser.userId);
+
+    if (eventsResult.ok === false) return Err(eventsResult.value);
+
+    const now = new Date();
+    const published: IOrganizerDashboardEvent[] = [];
+    const draft: IOrganizerDashboardEvent[] = [];
+    const past: IOrganizerDashboardEvent[] = [];
+
+    for (const event of eventsResult.value) {
+      const item: IOrganizerDashboardEvent = {
+        id: event.id,
+        title: event.title,
+        startDate: event.startDate,
+        category: event.category,
+        attendeeCount: event.attendeeCount,
+        capacity: event.capacity,
+        organizerName: event.organizerName,
+        status: event.status,
+      };
+
+      const eventEnded = new Date(event.endDate) < now;
+
+      if (event.status === "cancelled" || eventEnded) {
+        past.push(item);
+      } else if (event.status === "draft") {
+        draft.push(item);
+      } else {
+        published.push(item);
+      }
+    }
+
+    // Sort each group chronologically
+    const byStartAsc = (a: IOrganizerDashboardEvent, b: IOrganizerDashboardEvent) =>
+      new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    const byStartDesc = (a: IOrganizerDashboardEvent, b: IOrganizerDashboardEvent) =>
+      new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+
+    published.sort(byStartAsc);
+    draft.sort(byStartAsc);
+    past.sort(byStartDesc);
+
+    return Ok({ published, draft, past });
   }
 }
 
