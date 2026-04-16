@@ -1,0 +1,26 @@
+<h2>Events</h2>
+
+<ul>
+  <% if (events.length === 0) { %>
+    <li>No events found.</li>
+  <% } %>
+
+  <% events.forEach(event => { %>
+    <li style="margin-bottom: 20px;">
+      <strong><%= event.title %></strong><br/>
+      <%= event.description %><br/>
+      Category: <%= event.category %><br/>
+      Status: <%= event.status %><br/><br/>
+
+      <!-- Publish button -->
+      <form method="POST" action="/events/<%= event.id %>/publish">
+        <button type="submit">Publish</button>
+      </form>
+
+      <!-- Cancel button -->
+      <form method="POST" action="/events/<%= event.id %>/cancel">
+        <button type="submit">Cancel</button>
+      </form>
+    </li>
+  <% }) %>
+</ul>

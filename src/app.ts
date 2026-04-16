@@ -1,4 +1,5 @@
 import path from "node:path";
+import { EventController } from "./events/EventController";
 import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
 import Layouts from "express-ejs-layouts";
@@ -36,6 +37,7 @@ class ExpressApp implements IApp {
   constructor(
     private readonly authController: IAuthController,
     private readonly logger: ILoggingService,
+    private readonly eventController: EventController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -151,6 +153,17 @@ class ExpressApp implements IApp {
         }
 
         await this.authController.showLogin(res, browserSession);
+      }),
+    );
+
+    this.app.get(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        await this.eventController.listEvents(req, res);
       }),
     );
 
@@ -273,6 +286,7 @@ class ExpressApp implements IApp {
 export function CreateApp(
   authController: IAuthController,
   logger: ILoggingService,
+  eventController: EventController,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(authController, logger, eventController);
 }
