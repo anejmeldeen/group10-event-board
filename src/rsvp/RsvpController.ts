@@ -23,6 +23,11 @@ export interface IRsvpController {
     eventOrganizerId: string,
     eventCapacity: number,
   ): Promise<IRsvpView>;
+
+  getMyRsvpDashboard(
+    res: Response,
+    store: AppSessionStore,
+  ): Promise<void>;
 }
 
 class RsvpController implements IRsvpController {
@@ -96,6 +101,41 @@ class RsvpController implements IRsvpController {
     }
 
     return result.value;
+  }
+
+  async getMyRsvpDashboard(
+  res: Response,
+  store: AppSessionStore,
+): Promise<void> {
+  const session = touchAppSession(store);
+  const currentUser = getAuthenticatedUser(store);
+
+  if (!currentUser) {
+    res.redirect("/login");
+    return;
+  }
+
+  const result = await this.service.getMyRsvpDashboard(currentUser);
+
+  if (result.ok === false) {
+    const error = result.value;
+    const status = this.mapErrorStatus(error);
+    const log = status >= 500 ? this.logger.error : this.logger.warn;
+
+    log.call(this.logger, `RSVP dashboard failed: ${error.message}`);
+
+    res.status(status).render("partials/error", {
+      message: error.message,
+      session,
+    });
+    return;
+  }
+
+  res.render("rsvp/dashboard", {
+    upcoming: result.value.upcoming,
+    history: result.value.history,
+    session,
+  });
   }
 }
 

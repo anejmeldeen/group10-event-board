@@ -11,6 +11,24 @@ import {
 } from "./errors";
 import type { IAuthenticatedUserSession } from "../session/AppSession";
 
+export interface IMyRsvpDashboardItem {
+  eventId: string;
+  title: string;
+  location: string;
+  category: string;
+  startDate: string;
+  endDate: string;
+  eventStatus: string;
+  rsvpStatus: "going" | "waitlisted" | "cancelled";
+  organizerName: string;
+}
+
+export interface IMyRsvpDashboardData {
+  upcoming: IMyRsvpDashboardItem[];
+  history: IMyRsvpDashboardItem[];
+}
+
+
 export interface IRsvpService {
   toggleRsvp(
     eventId: string,
@@ -24,6 +42,10 @@ export interface IRsvpService {
     eventOrganizerId: string,
     eventCapacity: number,
   ): Promise<Result<IRsvpView, RsvpError>>;
+
+  getMyRsvpDashboard(
+    currentUser: IAuthenticatedUserSession,
+  ): Promise<Result<IMyRsvpDashboardData, RsvpError>>;
 }
 
 class RsvpService implements IRsvpService {
@@ -31,6 +53,71 @@ class RsvpService implements IRsvpService {
     private readonly rsvpRepo: IRsvpRepository,
     private readonly eventRepo: IEventRepository,
   ) {}
+
+    async getMyRsvpDashboard(
+    currentUser: IAuthenticatedUserSession,
+  ): Promise<Result<IMyRsvpDashboardData, RsvpError>> {
+    if (currentUser.role === "admin" || currentUser.role === "staff") {
+      return Err(RsvpNotAllowed("Only members can access the RSVP dashboard."));
+    }
+
+    const rsvpResult = await this.rsvpRepo.listByUser(currentUser.userId);
+    if (rsvpResult.ok === false) {
+      return Err(rsvpResult.value);
+    }
+
+    const now = new Date();
+    const upcoming: IMyRsvpDashboardItem[] = [];
+    const history: IMyRsvpDashboardItem[] = [];
+
+    for (const rsvp of rsvpResult.value) {
+      const eventResult = await this.eventRepo.findById(rsvp.eventId);
+      if (eventResult.ok === false) {
+        return Err(RsvpEventNotFound("Event not found."));
+      }
+
+      const event = eventResult.value;
+      if (!event) {
+        return Err(RsvpEventNotFound("Event not found."));
+      }
+
+      const item: IMyRsvpDashboardItem = {
+        eventId: event.id,
+        title: event.title,
+        location: event.location,
+        category: event.category,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        eventStatus: event.status,
+        rsvpStatus: rsvp.status,
+        organizerName: event.organizerName,
+      };
+
+      const eventEnded = new Date(event.endDate) < now;
+      const isHistory =
+        event.status === "cancelled" ||
+        eventEnded ||
+        rsvp.status === "cancelled";
+
+      if (isHistory) {
+        history.push(item);
+      } else {
+        upcoming.push(item);
+      }
+    }
+
+    upcoming.sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
+
+    history.sort(
+      (a, b) =>
+        new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
+    );
+
+    return Ok({ upcoming, history });
+  }
 
   async toggleRsvp(
     eventId: string,
