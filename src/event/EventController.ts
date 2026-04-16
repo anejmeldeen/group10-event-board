@@ -39,6 +39,7 @@ export interface IEventController {
     res: Response,
     input: CreateEventInput,
     store: AppSessionStore,
+    isHtmx?: boolean,
   ): Promise<void>;
 
   showEditForm(
@@ -70,11 +71,26 @@ class EventController implements IEventController {
   ) {}
 
   private mapErrorStatus(error: EventError): number {
-    if (error.name === "ValidationError") return 400;
-    if (error.name === "EventNotFound") return 404;
-    if (error.name === "EventNotAuthorized") return 403;
-    if (error.name === "EventInvalidState") return 409;
-    return 500;
+    switch (error.name) {
+      case "ValidationError":
+      case "MissingRequiredField":
+      case "FieldTooShort":
+      case "FieldTooLong":
+      case "InvalidDateFormat":
+      case "EndBeforeStart":
+      case "StartDateInPast":
+      case "InvalidCapacity":
+        return 400;
+      case "EventNotFound":
+        return 404;
+      case "EventNotAuthorized":
+        return 403;
+      case "EventInvalidState":
+        return 409;
+      case "UnexpectedDependencyError":
+      default:
+        return 500;
+    }
   }
 
   async showCreateForm(
@@ -213,6 +229,7 @@ class EventController implements IEventController {
     res: Response,
     input: CreateEventInput,
     store: AppSessionStore,
+    isHtmx: boolean = false,
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
@@ -220,7 +237,11 @@ class EventController implements IEventController {
     // Safety check - the route should have already guarded this
     if (!currentUser) {
       this.logger.error("Attempted to create event without authenticated user");
-      res.redirect("/login");
+      if (isHtmx) {
+        res.status(401).render("partials/error", { message: "Please log in to continue.", layout: false });
+      } else {
+        res.redirect("/login");
+      }
       return;
     }
 
@@ -237,15 +258,30 @@ class EventController implements IEventController {
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Create event failed: ${error.message}`);
       
-      res.status(status);
-      await this.showCreateForm(res, session, input, error.message);
+      if (isHtmx) {
+        // For HTMX requests, return just the error partial (no layout)
+        // so it can be swapped into the form's error container
+        res.status(status).render("partials/error", {
+          message: error.message,
+          layout: false,
+        });
+      } else {
+        res.status(status);
+        await this.showCreateForm(res, session, input, error.message);
+      }
       return;
     }
 
     this.logger.info(`Created event ${result.value.id} "${result.value.title}"`);
     
-    // Redirect to home dashboard directly per user request
-    res.redirect("/home"); 
+    if (isHtmx) {
+      // Tell HTMX to redirect the whole page to the home dashboard
+      res.set("HX-Redirect", "/home");
+      res.status(200).send("");
+    } else {
+      // Redirect to home dashboard directly per user request
+      res.redirect("/home"); 
+    }
   }
 
   async showEditForm(
