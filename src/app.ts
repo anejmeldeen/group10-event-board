@@ -260,6 +260,12 @@ class ExpressApp implements IApp {
 
     // ── Event routes ─────────────────────────────────────────────────
 
+    // Organizer dashboard
+
+    this.app.get("/events/manage", (req, res) =>
+      this.eventController.getOrganizerDashboard(res, req.session)
+    );
+
     this.app.get(
       "/events/create",
       asyncHandler(async (req, res) => {
@@ -282,6 +288,20 @@ class ExpressApp implements IApp {
 
         const eventId = typeof req.params.id === "string" ? req.params.id : "";
         await this.eventController.showEditForm(res, eventId, sessionStore(req));
+      }),
+    );
+
+        this.app.get(
+      "/events/:id",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const session = sessionStore(req);
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        
+        await this.eventController.showEventDetail(res, eventId, session);
       }),
     );
 
@@ -320,20 +340,6 @@ class ExpressApp implements IApp {
           },
           sessionStore(req),
         );
-      }),
-    );
-
-    this.app.get(
-      "/events/:id",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const session = sessionStore(req);
-        const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        
-        await this.eventController.showEventDetail(res, eventId, session);
       }),
     );
 
