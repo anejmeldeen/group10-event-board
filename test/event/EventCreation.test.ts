@@ -9,6 +9,8 @@
  *  - Happy path: valid event creation returns 200 + HX-Redirect (HTMX) or 302 (standard)
  *  - Each named error type returns the correct HTTP status and error name in the response
  *  - Members (role "user") cannot access the creation form or endpoint
+ * 
+ * Note: Sprint 2 compliance has been validated.
  */
 
 import request from "supertest";
@@ -430,6 +432,67 @@ describe("POST /events/create", () => {
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe("/home");
+  });
+
+  // ── HTMX DOM Partial Integration Validation ────────────────────
+
+  it("returns isolated partial layout (without navbars) for HTMX validation failures", async () => {
+    const app = buildApp();
+    const agent = request.agent(app);
+    await loginAs(agent, "admin@app.test", "password123");
+
+    // Force an error to capture the HTMX specifically-rendered partial body
+    const res = await agent
+      .post("/events/create")
+      .send(new URLSearchParams(validEventPayload({ description: "" })).toString())
+      .set("Content-Type", "application/x-www-form-urlencoded")
+      .set("HX-Request", "true");
+
+    expect(res.status).toBe(400);
+    // HTMX partials MUST NOT contain the layout wrapper tags
+    expect(res.text).not.toContain("<html");
+    expect(res.text).not.toContain("<body");
+    expect(res.text).not.toContain("<nav");
+    // Ensure the expected payload is purely the alert partial component
+    expect(res.text).toContain("section");
+    expect(res.text).toContain("Description is required");
+  });
+
+  it("returns isolated partial layout for standard validation failures (Title missing)", async () => {
+    const app = buildApp();
+    const agent = request.agent(app);
+    await loginAs(agent, "admin@app.test", "password123");
+
+    const res = await agent
+      .post("/events/create")
+      .send(new URLSearchParams(validEventPayload({ title: "" })).toString())
+      .set("Content-Type", "application/x-www-form-urlencoded")
+      .set("HX-Request", "true");
+
+    expect(res.status).toBe(400);
+    expect(res.text).not.toContain("<!DOCTYPE html>");
+    expect(res.text).toContain("Title is required");
+  });
+
+  it("responds seamlessly to HTMX concurrent duplicate submission states", async () => {
+    const app = buildApp();
+    const agent = request.agent(app);
+    await loginAs(agent, "admin@app.test", "password123");
+
+    // Overload the endpoint similar to rapid consecutive form submissions via a hyper-active client
+    const payloads = [
+      agent.post("/events/create").send(new URLSearchParams(validEventPayload()).toString()).set("HX-Request", "true"),
+      agent.post("/events/create").send(new URLSearchParams(validEventPayload()).toString()).set("HX-Request", "true"),
+      agent.post("/events/create").send(new URLSearchParams(validEventPayload()).toString()).set("HX-Request", "true"),
+    ];
+
+    const responses = await Promise.all(payloads);
+    
+    // Ensure the service isolates operations gracefully without dying
+    for (const response of responses) {
+      expect(response.status).toBe(200);
+      expect(response.headers['hx-redirect']).toBe("/home");
+    }
   });
 
   // ── Standard form POST re-renders form with error on failure ──

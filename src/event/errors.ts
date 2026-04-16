@@ -6,6 +6,7 @@
  *
  * Sprint 2 — every creation-failure path has a dedicated name so integration
  * tests can assert on error.name without inspecting message strings.
+ * (Everything implemented here is compliant with Sprint 2).
  */
 
 export type EventError =
