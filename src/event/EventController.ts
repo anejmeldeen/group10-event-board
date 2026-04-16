@@ -8,6 +8,7 @@ import {
 } from "../session/AppSession";
 import type { ILoggingService } from "../service/LoggingService";
 import type { EventError } from "./errors";
+import type { IRsvpController } from "../rsvp/RsvpController";
 
 export interface IEventController {
   showCreateForm(
@@ -55,12 +56,18 @@ export interface IEventController {
     input: UpdateEventInput,
     store: AppSessionStore,
   ): Promise<void>;
+
+  getOrganizerDashboard(
+    res: Response,
+    store: AppSessionStore,
+  ): Promise<void>;
 }
 
 class EventController implements IEventController {
   constructor(
     private readonly service: IEventService,
     private readonly logger: ILoggingService,
+    private readonly rsvpController?: IRsvpController,
   ) {}
 
   private mapErrorStatus(error: EventError): number {
@@ -103,9 +110,6 @@ class EventController implements IEventController {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
     
-    // Safety check - the route should have already guarded this, but it also allows optional auth handling?
-    // Wait, prompt says: "Any authenticated user can view a page" so currentUser is guaranteed if route is guarded
-    
     const result = await this.service.getEventDetails(eventId, currentUser);
 
     if (result.ok === false) {
@@ -118,13 +122,59 @@ class EventController implements IEventController {
       return;
     }
 
+    const event = result.value;
+
+    // Build RSVP view data if the RSVP controller is available
+    let rsvpView: { canRsvp: boolean; currentStatus: string; goingCount: number; capacity: number } = { canRsvp: false, currentStatus: "none", goingCount: event.attendeeCount, capacity: event.capacity };
+    if (this.rsvpController) {
+      rsvpView = await this.rsvpController.getRsvpView(eventId, store, event.status, event.organizerId, event.capacity);
+    }
+
     res.render("event/detail", { 
       session, 
-      event: result.value,
-      user: currentUser 
-    });
+      event,
+      user: currentUser,
+      rsvpView,
+    }); 
   }
 
+  async getOrganizerDashboard(
+    res: Response,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const session = touchAppSession(store);
+    const currentUser = getAuthenticatedUser(store);
+
+  if (!currentUser) {
+    res.redirect("/login");
+    return;
+  }
+
+  const result = await this.service.getOrganizerDashboard(currentUser);
+
+  if (result.ok === false) {
+    const error = result.value;
+    const status = this.mapErrorStatus(error);
+    const log = status >= 500 ? this.logger.error : this.logger.warn;
+
+    log.call(this.logger, `Organizer dashboard failed: ${error.message}`);
+
+    res.status(status).render("partials/error", {
+      message: error.message,
+      session,
+    });
+    return;
+  }
+
+  res.render("event/organizer-dashboard", {
+    draft: result.value.draft,
+    published: result.value.published,
+    cancelledOrPast: result.value.cancelledOrPast,
+    session,
+    pageError: null,
+  });
+}
+  
   async showDashboard(
     res: Response,
     store: AppSessionStore,
@@ -353,6 +403,7 @@ class EventController implements IEventController {
 export function CreateEventController(
   service: IEventService,
   logger: ILoggingService,
+  rsvpController?: IRsvpController,
 ): IEventController {
-  return new EventController(service, logger);
+  return new EventController(service, logger, rsvpController);
 }
