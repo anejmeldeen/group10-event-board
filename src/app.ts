@@ -374,13 +374,16 @@ class ExpressApp implements IApp {
       }),
     );
 
-    // RSVP routes
-    this.app.post("/events/:id/rsvp", (req, res) =>
-      this.rsvpController.toggleRsvp(res, req.params.id, req.session)
-    );
+    // RSVP dashboard – my RSVPs
+    this.app.get(
+      "/rsvps/me",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
 
-    this.app.get("/rsvps/me", (req, res) =>
-      this.rsvpController.getMyRsvpDashboard(res, req.session)
+        await this.rsvpController.getMyRsvpDashboard(res, sessionStore(req));
+      }),
     );
     
     // ── Error handler ────────────────────────────────────────────────
