@@ -18,7 +18,7 @@ export interface CreateUserInput {
   password: string;
   role: UserRole;
 }
-
+// test
 export interface IAdminUserService {
   listUsers(): Promise<Result<IUserSummary[], AuthError>>;
   createUser(input: CreateUserInput): Promise<Result<IUserSummary, AuthError>>;
