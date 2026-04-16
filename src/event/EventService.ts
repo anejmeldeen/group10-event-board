@@ -12,6 +12,7 @@ import type { IEventRepository } from "./EventRepository";
 import type { IEventRecord, IEventSummary } from "./Event";
 import { toEventSummary } from "./Event";
 import type { IAuthenticatedUserSession } from "../session/AppSession";
+import type { IRsvpRepository } from "../rsvp/RsvpRepository";
 
 /** A single event entry on the organizer dashboard. */
 export interface IOrganizerDashboardEvent {
@@ -60,6 +61,23 @@ export interface OrganizerIdentity {
   displayName: string;
 }
 
+export interface IOrganizerDashboardItem {
+  id: string;
+  title: string;
+  category: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  capacity: number;
+  attendeeCount: number;
+}
+
+export interface IOrganizerDashboardData {
+  draft: IOrganizerDashboardItem[];
+  published: IOrganizerDashboardItem[];
+  cancelledOrPast: IOrganizerDashboardItem[];
+}
+
 export interface IEventService {
   createEvent(
     input: CreateEventInput,
@@ -70,6 +88,10 @@ export interface IEventService {
     eventId: string,
     currentUser: IAuthenticatedUserSession | null,
   ): Promise<Result<IEventRecord, EventError>>;
+
+  getOrganizerDashboard(
+    currentUser: IAuthenticatedUserSession,
+  ): Promise<Result<IOrganizerDashboardData, EventError>>;
 
   listVisibleEvents(
     currentUser: IAuthenticatedUserSession | null,
@@ -200,7 +222,10 @@ function parseAndValidateCapacity(raw: string): Result<number, EventError> {
 // ── Service implementation ───────────────────────────────────────────
 
 class EventService implements IEventService {
-  constructor(private readonly repo: IEventRepository) {}
+  constructor(
+    private readonly repo: IEventRepository, 
+    private readonly rsvpRepo: IRsvpRepository,
+  ) {}
 
   async createEvent(
     input: CreateEventInput,
@@ -345,131 +370,152 @@ class EventService implements IEventService {
   }
 
   async updateEvent(
-    eventId: string,
-    input: UpdateEventInput,
-    currentUser: IAuthenticatedUserSession | null,
-  ): Promise<Result<IEventSummary, EventError>> {
-    // 1. Load the event
-    const eventResult = await this.repo.findById(eventId);
-    if (eventResult.ok === false) return Err(eventResult.value);
+  eventId: string,
+  input: UpdateEventInput,
+  currentUser: IAuthenticatedUserSession | null,
+): Promise<Result<IEventSummary, EventError>> {
+  // 1. Load the event
+  const eventResult = await this.repo.findById(eventId);
+  if (eventResult.ok === false) return Err(eventResult.value);
 
-    const event = eventResult.value;
-    if (!event) {
-      return Err(EventNotFound("Event not found."));
-    }
-
-    // 2. Check permission: organizer or admin only
-    const isOwner = currentUser?.userId === event.organizerId;
-    const isAdmin = currentUser?.role === "admin";
-    if (!isOwner && !isAdmin) {
-      return Err(EventNotAuthorized("You do not have permission to edit this event."));
-    }
-
-    // 3. Check state: cancelled events cannot be edited
-    if (event.status === "cancelled") {
-      return Err(EventInvalidState("Cancelled events cannot be edited."));
-    }
-
-    // 4. Validate input — reuse the same helpers as createEvent
-    const titleErr = validateTitle(input.title);
-    if (titleErr) return Err(titleErr);
-
-    const descErr = validateDescription(input.description);
-    if (descErr) return Err(descErr);
-
-    const locErr = validateLocation(input.location);
-    if (locErr) return Err(locErr);
-
-    const catErr = validateCategory(input.category);
-    if (catErr) return Err(catErr);
-
-    const startResult = parseAndValidateDate(input.startDate, "Start date");
-    if (startResult.ok === false) return Err(startResult.value);
-    const startDate = startResult.value;
-
-    const endResult = parseAndValidateDate(input.endDate, "End date");
-    if (endResult.ok === false) return Err(endResult.value);
-    const endDate = endResult.value;
-
-    const rangeErr = validateDateRange(startDate, endDate);
-    if (rangeErr) return Err(rangeErr);
-
-    const capResult = parseAndValidateCapacity(input.capacity);
-    if (capResult.ok === false) return Err(capResult.value);
-    const capacity = capResult.value;
-
-    // 5. Build the updated record
-    const updatedEvent: IEventRecord = {
-      ...event,
-      title: input.title.trim(),
-      description: input.description.trim(),
-      location: input.location.trim(),
-      category: input.category.trim(),
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      capacity,
-      updatedAt: new Date().toISOString(),
-    };
-
-    // 6. Persist
-    const saveResult = await this.repo.update(updatedEvent);
-    if (saveResult.ok === false) return Err(saveResult.value);
-
-    return Ok(toEventSummary(saveResult.value));
+  const event = eventResult.value;
+  if (!event) {
+    return Err(EventNotFound("Event not found."));
   }
+
+  // 2. Check permission: organizer or admin only
+  const isOwner = currentUser?.userId === event.organizerId;
+  const isAdmin = currentUser?.role === "admin";
+  if (!isOwner && !isAdmin) {
+    return Err(EventNotAuthorized("You do not have permission to edit this event."));
+  }
+
+  // 3. Check state: cancelled events cannot be edited
+  if (event.status === "cancelled") {
+    return Err(EventInvalidState("Cancelled events cannot be edited."));
+  }
+
+  // 4. Validate input — reuse the same helpers as createEvent
+  const titleErr = validateTitle(input.title);
+  if (titleErr) return Err(titleErr);
+
+  const descErr = validateDescription(input.description);
+  if (descErr) return Err(descErr);
+
+  const locErr = validateLocation(input.location);
+  if (locErr) return Err(locErr);
+
+  const catErr = validateCategory(input.category);
+  if (catErr) return Err(catErr);
+
+  const startResult = parseAndValidateDate(input.startDate, "Start date");
+  if (startResult.ok === false) return Err(startResult.value);
+  const startDate = startResult.value;
+
+  const endResult = parseAndValidateDate(input.endDate, "End date");
+  if (endResult.ok === false) return Err(endResult.value);
+  const endDate = endResult.value;
+
+  const rangeErr = validateDateRange(startDate, endDate);
+  if (rangeErr) return Err(rangeErr);
+
+  const capResult = parseAndValidateCapacity(input.capacity);
+  if (capResult.ok === false) return Err(capResult.value);
+  const capacity = capResult.value;
+
+  // 5. Build the updated record
+  const updatedEvent: IEventRecord = {
+    ...event,
+    title: input.title.trim(),
+    description: input.description.trim(),
+    location: input.location.trim(),
+    category: input.category.trim(),
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    capacity,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // 6. Persist
+  const saveResult = await this.repo.update(updatedEvent);
+  if (saveResult.ok === false) return Err(saveResult.value);
+
+  return Ok(toEventSummary(saveResult.value));
+}
 
   async getOrganizerDashboard(
     currentUser: IAuthenticatedUserSession,
   ): Promise<Result<IOrganizerDashboardData, EventError>> {
-    // Admin sees all events; staff sees only their own
-    const eventsResult = currentUser.role === "admin"
-      ? await this.repo.findAll()
-      : await this.repo.findByOrganizerId(currentUser.userId);
+    // Block regular members
+    if (currentUser.role !== "admin" && currentUser.role !== "staff") {
+  return Err(EventNotAuthorized("Members cannot access the organizer dashboard."));
+}
 
-    if (eventsResult.ok === false) return Err(eventsResult.value);
+    const eventsResult =
+      currentUser.role === "admin"
+        ? await this.repo.findAll()
+        : await this.repo.findByOrganizerId(currentUser.userId);
 
-    const now = new Date();
-    const published: IOrganizerDashboardEvent[] = [];
-    const draft: IOrganizerDashboardEvent[] = [];
-    const past: IOrganizerDashboardEvent[] = [];
+    if (eventsResult.ok === false) {
+      return Err(eventsResult.value);
+    }
+
+    const draft: IOrganizerDashboardItem[] = [];
+    const published: IOrganizerDashboardItem[] = [];
+    const cancelledOrPast: IOrganizerDashboardItem[] = [];
 
     for (const event of eventsResult.value) {
-      const item: IOrganizerDashboardEvent = {
+      const countResult = await this.rsvpRepo.countGoing(event.id);
+      if (countResult.ok === false) {
+        return Err(EventNotAuthorized("Could not load attendee count."));
+      }
+
+      const item: IOrganizerDashboardItem = {
         id: event.id,
         title: event.title,
-        startDate: event.startDate,
         category: event.category,
-        attendeeCount: event.attendeeCount,
-        capacity: event.capacity,
-        organizerName: event.organizerName,
+        startDate: event.startDate,
+        endDate: event.endDate,
         status: event.status,
+        capacity: event.capacity,
+        attendeeCount: countResult.value,
       };
 
-      const eventEnded = new Date(event.endDate) < now;
+      const isPast = new Date(event.endDate) < new Date();
 
-      if (event.status === "cancelled" || eventEnded) {
-        past.push(item);
-      } else if (event.status === "draft") {
+      if (event.status === "draft") {
         draft.push(item);
-      } else {
+      } else if (event.status === "published" && !isPast) {
         published.push(item);
+      } else {
+        cancelledOrPast.push(item);
       }
     }
 
-    // Sort each group chronologically
-    const byStartAsc = (a: IOrganizerDashboardEvent, b: IOrganizerDashboardEvent) =>
-      new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-    const byStartDesc = (a: IOrganizerDashboardEvent, b: IOrganizerDashboardEvent) =>
-      new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    draft.sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
 
-    published.sort(byStartAsc);
-    draft.sort(byStartAsc);
-    past.sort(byStartDesc);
+    published.sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
 
-    return Ok({ published, draft, past });
+    cancelledOrPast.sort(
+      (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
+    );
+
+    return Ok({
+      draft,
+      published,
+      cancelledOrPast,
+    });
   }
+
 }
 
-export function CreateEventService(repo: IEventRepository): IEventService {
-  return new EventService(repo);
+export function CreateEventService(
+  repo: IEventRepository,
+  rsvpRepo: IRsvpRepository,
+): IEventService {
+  return new EventService(repo, rsvpRepo);
 }

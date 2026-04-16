@@ -56,7 +56,7 @@ export interface IEventController {
     store: AppSessionStore,
   ): Promise<void>;
 
-  showOrganizerDashboard(
+  getOrganizerDashboard(
     res: Response,
     store: AppSessionStore,
   ): Promise<void>;
@@ -119,9 +119,45 @@ class EventController implements IEventController {
       event,
       user: currentUser,
       rsvpView,
-    });
+    }); 
   }
 
+  async getOrganizerDashboard(
+    res: Response,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const session = touchAppSession(store);
+    const currentUser = getAuthenticatedUser(store);
+
+  if (!currentUser) {
+    res.redirect("/login");
+    return;
+  }
+
+  const result = await this.service.getOrganizerDashboard(currentUser);
+
+  if (result.ok === false) {
+    const error = result.value;
+    const status = this.mapErrorStatus(error);
+    const log = status >= 500 ? this.logger.error : this.logger.warn;
+
+    log.call(this.logger, `Organizer dashboard failed: ${error.message}`);
+
+    res.status(status).render("partials/error", {
+      message: error.message,
+      session,
+    });
+    return;
+  }
+
+  res.render("event/organizer-dashboard", {
+    draft: result.value.draft,
+    published: result.value.published,
+    cancelledOrPast: result.value.cancelledOrPast,
+    session,
+  });
+}
+  
   async showDashboard(
     res: Response,
     store: AppSessionStore,
