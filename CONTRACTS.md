@@ -7,7 +7,7 @@ if you wanna change something here lmk in the gc first
 - B. Nick — F3 (Event Editing), F4 (RSVP Toggle)
 - C. Hriday — F5 (Publish/Cancel), F6 (Category & Date Filter)
 - D. Eben — F7 (My RSVPs Dashboard), F8 (Organizer Dashboard)
-- E. Yuvan - F10 (Search), F9 (User Profile)
+- E. Yuvan - F10 (Search), F14 (Save for Later)
 
 ---
 
