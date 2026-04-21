@@ -2,12 +2,22 @@
   <%- include("partials/error", { message: pageError }) %>
 <% } %>
 
-<!-- Dashboard Header -->
 <div class="flex items-center justify-between mb-8">
   <div>
     <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Event Dashboard</h1>
     <p class="text-slate-500 mt-1">Discover what's happening and plan your schedule.</p>
   </div>
+
+  <div class="flex gap-3">
+    <% if (user?.role === 'user') { %>
+      <a
+        href="/saved"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-sm transition-colors no-underline"
+      >
+        Saved Events
+      </a>
+    <% } %>
+
   <% if (user?.role === 'admin' || user?.role === 'staff') { %>
     <a
       href="/events/create"
@@ -17,6 +27,7 @@
       Create Event
     </a>
   <% } %>
+  </div>
 </div>
 
 <form method="GET" action="/home" class="mb-8">
@@ -67,7 +78,7 @@
                     <%= event.location %>
                   </div>
                   <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     <time><%= new Date(event.startDate).toLocaleString() %></time>
                   </div>
                 </div>
@@ -113,6 +124,13 @@
                 <a href="/events/<%= event.id %>" class="w-full inline-block text-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg no-underline">
                   View Event
                 </a>
+
+                <form method="POST" action="/saved/<%= event.id %>/toggle">
+                  <input type="hidden" name="returnTo" value="/home" />
+                  <button type="submit" class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-sm transition-colors cursor-pointer">
+                    Save for Later
+                  </button>
+                </form>
               </div>
             <% } %>
           </div>
