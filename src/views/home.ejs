@@ -19,6 +19,24 @@
   <% } %>
 </div>
 
+<form method="GET" action="/home" class="mb-8">
+  <div class="flex gap-3">
+    <input
+      type="text"
+      name="q"
+      value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>"
+      placeholder="Search by title, description, or location"
+      class="flex-1 px-4 py-3 rounded-xl border border-slate-300 bg-white shadow-sm"
+    />
+    <button
+      type="submit"
+      class="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-sm"
+    >
+      Search
+    </button>
+  </div>
+</form>
+
 <!-- Scrollable Events Feed -->
 <div class="space-y-8">
   <% if (!events || events.length === 0) { %>
@@ -31,8 +49,6 @@
     <% events.forEach(event => { %>
       <article class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden transition-all hover:shadow-xl group">
         <div class="flex flex-col md:flex-row">
-          
-          <!-- Event Content -->
           <div class="flex-grow p-6 md:p-8">
             <div class="flex items-start justify-between gap-4 mb-4">
               <div>
@@ -59,9 +75,8 @@
             </div>
 
             <p class="text-slate-600 line-clamp-3 leading-relaxed mb-6"><%= event.description %></p>
-            
+
             <div class="flex items-center justify-between mt-auto">
-              <!-- Attendance Stats -->
               <div class="flex items-center gap-3">
                 <div class="flex -space-x-2">
                   <div class="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-xs font-bold text-blue-700">
@@ -79,7 +94,6 @@
             </div>
           </div>
 
-          <!-- Event Sidebar Actions -->
           <div class="bg-slate-50 border-l border-slate-100 p-6 md:p-8 flex flex-col justify-center min-w-[240px]">
             <% if (user?.role === 'admin' || user?.role === 'staff') { %>
               <div class="space-y-3 w-full">
@@ -92,8 +106,6 @@
                       Publish Event
                     </button>
                   </form>
-                <% } else { %>
-                  
                 <% } %>
               </div>
             <% } else { %>
@@ -104,10 +116,8 @@
               </div>
             <% } %>
           </div>
-
         </div>
       </article>
     <% }) %>
   <% } %>
 </div>
-

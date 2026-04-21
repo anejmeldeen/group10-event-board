@@ -27,6 +27,7 @@ export interface IEventController {
   showDashboard(
     res: Response,
     store: AppSessionStore,
+    query: string,
   ): Promise<void>;
 
   publishEvent(
@@ -109,7 +110,7 @@ class EventController implements IEventController {
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
-    
+
     const result = await this.service.getEventDetails(eventId, currentUser);
 
     if (result.ok === false) {
@@ -124,18 +125,29 @@ class EventController implements IEventController {
 
     const event = result.value;
 
-    // Build RSVP view data if the RSVP controller is available
-    let rsvpView: { canRsvp: boolean; currentStatus: string; goingCount: number; capacity: number } = { canRsvp: false, currentStatus: "none", goingCount: event.attendeeCount, capacity: event.capacity };
+    let rsvpView: { canRsvp: boolean; currentStatus: string; goingCount: number; capacity: number } = {
+      canRsvp: false,
+      currentStatus: "none",
+      goingCount: event.attendeeCount,
+      capacity: event.capacity,
+    };
+
     if (this.rsvpController) {
-      rsvpView = await this.rsvpController.getRsvpView(eventId, store, event.status, event.organizerId, event.capacity);
+      rsvpView = await this.rsvpController.getRsvpView(
+        eventId,
+        store,
+        event.status,
+        event.organizerId,
+        event.capacity,
+      );
     }
 
-    res.render("event/detail", { 
-      session, 
+    res.render("event/detail", {
+      session,
       event,
       user: currentUser,
       rsvpView,
-    }); 
+    });
   }
 
   async getOrganizerDashboard(
@@ -145,51 +157,53 @@ class EventController implements IEventController {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
-  if (!currentUser) {
-    res.redirect("/login");
-    return;
-  }
+    if (!currentUser) {
+      res.redirect("/login");
+      return;
+    }
 
-  const result = await this.service.getOrganizerDashboard(currentUser);
+    const result = await this.service.getOrganizerDashboard(currentUser);
 
-  if (result.ok === false) {
-    const error = result.value;
-    const status = this.mapErrorStatus(error);
-    const log = status >= 500 ? this.logger.error : this.logger.warn;
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
 
-    log.call(this.logger, `Organizer dashboard failed: ${error.message}`);
+      log.call(this.logger, `Organizer dashboard failed: ${error.message}`);
 
-    res.status(status).render("partials/error", {
-      message: error.message,
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session,
+      });
+      return;
+    }
+
+    res.render("event/organizer-dashboard", {
+      draft: result.value.draft,
+      published: result.value.published,
+      cancelledOrPast: result.value.cancelledOrPast,
       session,
+      pageError: null,
     });
-    return;
   }
 
-  res.render("event/organizer-dashboard", {
-    draft: result.value.draft,
-    published: result.value.published,
-    cancelledOrPast: result.value.cancelledOrPast,
-    session,
-    pageError: null,
-  });
-}
-  
   async showDashboard(
     res: Response,
     store: AppSessionStore,
+    query: string,
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
-    const result = await this.service.listVisibleEvents(currentUser);
+    const result = await this.service.listVisibleEvents(currentUser, query);
 
     if (result.ok === false) {
       res.render("home", {
         session,
         events: [],
         user: currentUser,
-        pageError: "Unable to load events."
+        pageError: "Unable to load events.",
+        searchQuery: query,
       });
       return;
     }
@@ -198,7 +212,8 @@ class EventController implements IEventController {
       session,
       events: result.value,
       user: currentUser,
-      pageError: null
+      pageError: null,
+      searchQuery: query,
     });
   }
 
@@ -209,7 +224,7 @@ class EventController implements IEventController {
   ): Promise<void> {
     const currentUser = getAuthenticatedUser(store);
     const result = await this.service.publishEvent(eventId, currentUser);
-    
+
     if (result.ok === false) {
       const error = result.value;
       const status = this.mapErrorStatus(error);
@@ -233,12 +248,14 @@ class EventController implements IEventController {
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
-    
-    // Safety check - the route should have already guarded this
+
     if (!currentUser) {
       this.logger.error("Attempted to create event without authenticated user");
       if (isHtmx) {
-        res.status(401).render("partials/error", { message: "Please log in to continue.", layout: false });
+        res.status(401).render("partials/error", {
+          message: "Please log in to continue.",
+          layout: false,
+        });
       } else {
         res.redirect("/login");
       }
@@ -257,10 +274,8 @@ class EventController implements IEventController {
       const status = this.mapErrorStatus(error);
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Create event failed: ${error.message}`);
-      
+
       if (isHtmx) {
-        // For HTMX requests, return just the error partial (no layout)
-        // so it can be swapped into the form's error container
         res.status(status).render("partials/error", {
           message: error.message,
           layout: false,
@@ -273,14 +288,12 @@ class EventController implements IEventController {
     }
 
     this.logger.info(`Created event ${result.value.id} "${result.value.title}"`);
-    
+
     if (isHtmx) {
-      // Tell HTMX to redirect the whole page to the home dashboard
       res.set("HX-Redirect", "/home");
       res.status(200).send("");
     } else {
-      // Redirect to home dashboard directly per user request
-      res.redirect("/home"); 
+      res.redirect("/home");
     }
   }
 
@@ -294,9 +307,6 @@ class EventController implements IEventController {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
-    // Load the event so we can both check permission and pre-fill the form.
-    // We deliberately use the service (not the repo directly) so the draft
-    // visibility rule and any other business logic is applied consistently.
     const result = await this.service.getEventDetails(eventId, currentUser);
 
     if (result.ok === false) {
@@ -311,8 +321,6 @@ class EventController implements IEventController {
 
     const event = result.value;
 
-    // Check permission here so the user gets a real 403 instead of seeing
-    // the form and only being told no after they hit Save.
     const isOwner = currentUser?.userId === event.organizerId;
     const isAdmin = currentUser?.role === "admin";
     if (!isOwner && !isAdmin) {
@@ -331,8 +339,6 @@ class EventController implements IEventController {
       return;
     }
 
-    // Pre-fill the form with the current event values, unless the caller
-    // passed `input` (which happens when re-rendering after a validation error).
     const formInput: Partial<UpdateEventInput> = {
       title: input.title ?? event.title,
       description: input.description ?? event.description,
@@ -373,9 +379,6 @@ class EventController implements IEventController {
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Update event failed: ${error.message}`);
 
-      // For not-found / not-authorized / invalid-state, the form itself
-      // shouldn't be re-rendered — the user has no useful action from here.
-      // Show a plain error page instead.
       if (
         error.name === "EventNotFound" ||
         error.name === "EventNotAuthorized" ||
@@ -388,8 +391,6 @@ class EventController implements IEventController {
         return;
       }
 
-      // For ValidationError, re-render the form with the user's input
-      // so they can fix it without retyping everything.
       res.status(status);
       await this.showEditForm(res, eventId, store, input, error.message);
       return;
