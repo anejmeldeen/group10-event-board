@@ -2,24 +2,34 @@
   <%- include("partials/error", { message: pageError }) %>
 <% } %>
 
-<!-- Dashboard Header -->
 <div class="flex items-center justify-between mb-8">
   <div>
     <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Event Dashboard</h1>
     <p class="text-slate-500 mt-1">Discover what's happening and plan your schedule.</p>
   </div>
-  <% if (user?.role === 'admin' || user?.role === 'staff') { %>
-    <a
-      href="/events/create"
-      class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm transition-colors no-underline"
-    >
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-      Create Event
-    </a>
-  <% } %>
+
+  <div class="flex gap-3">
+    <% if (user?.role === 'user') { %>
+      <a
+        href="/saved"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-sm transition-colors no-underline"
+      >
+        Saved Events
+      </a>
+    <% } %>
+
+    <% if (user?.role === 'admin' || user?.role === 'staff') { %>
+      <a
+        href="/events/create"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm transition-colors no-underline"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Create Event
+      </a>
+    <% } %>
+  </div>
 </div>
 
-<!-- Scrollable Events Feed -->
 <div class="space-y-8">
   <% if (!events || events.length === 0) { %>
     <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
@@ -31,8 +41,6 @@
     <% events.forEach(event => { %>
       <article class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden transition-all hover:shadow-xl group">
         <div class="flex flex-col md:flex-row">
-          
-          <!-- Event Content -->
           <div class="flex-grow p-6 md:p-8">
             <div class="flex items-start justify-between gap-4 mb-4">
               <div>
@@ -51,7 +59,7 @@
                     <%= event.location %>
                   </div>
                   <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     <time><%= new Date(event.startDate).toLocaleString() %></time>
                   </div>
                 </div>
@@ -59,9 +67,8 @@
             </div>
 
             <p class="text-slate-600 line-clamp-3 leading-relaxed mb-6"><%= event.description %></p>
-            
+
             <div class="flex items-center justify-between mt-auto">
-              <!-- Attendance Stats -->
               <div class="flex items-center gap-3">
                 <div class="flex -space-x-2">
                   <div class="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-xs font-bold text-blue-700">
@@ -79,7 +86,6 @@
             </div>
           </div>
 
-          <!-- Event Sidebar Actions -->
           <div class="bg-slate-50 border-l border-slate-100 p-6 md:p-8 flex flex-col justify-center min-w-[240px]">
             <% if (user?.role === 'admin' || user?.role === 'staff') { %>
               <div class="space-y-3 w-full">
@@ -92,8 +98,6 @@
                       Publish Event
                     </button>
                   </form>
-                <% } else { %>
-                  
                 <% } %>
               </div>
             <% } else { %>
@@ -101,13 +105,18 @@
                 <a href="/events/<%= event.id %>" class="w-full inline-block text-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg no-underline">
                   View Event
                 </a>
+
+                <form method="POST" action="/saved/<%= event.id %>/toggle">
+                  <input type="hidden" name="returnTo" value="/home" />
+                  <button type="submit" class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-sm transition-colors cursor-pointer">
+                    Save for Later
+                  </button>
+                </form>
               </div>
             <% } %>
           </div>
-
         </div>
       </article>
     <% }) %>
   <% } %>
 </div>
-
