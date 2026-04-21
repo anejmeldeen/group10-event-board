@@ -15,7 +15,6 @@ import {
   EndBeforeStart,
   StartDateInPast,
   InvalidCapacity,
-  ValidationError,
   EventNotFound,
   EventNotAuthorized,
   EventInvalidState,
@@ -27,19 +26,18 @@ import { toEventSummary } from "./Event";
 import type { IAuthenticatedUserSession } from "../session/AppSession";
 import type { IRsvpRepository } from "../rsvp/RsvpRepository";
 
-
 /** Raw input coming from the form (all strings). */
 export interface CreateEventInput {
   title: string;
   description: string;
   location: string;
   category: string;
-  startDate: string;   // Expected: ISO 8601 or datetime-local format
-  endDate: string;     // Expected: ISO 8601 or datetime-local format
-  capacity: string;    // Numeric string; empty or "0" means unlimited
+  startDate: string;
+  endDate: string;
+  capacity: string;
 }
 
-/** Raw input from the edit form. Same shape as CreateEventInput — the fields a user can change are identical. */
+/** Raw input from the edit form. Same shape as CreateEventInput. */
 export interface UpdateEventInput {
   title: string;
   description: string;
@@ -90,25 +88,20 @@ export interface IEventService {
 
   listVisibleEvents(
     currentUser: IAuthenticatedUserSession | null,
+    query: string,
   ): Promise<Result<IEventRecord[], EventError>>;
 
   publishEvent(
     eventId: string,
     currentUser: IAuthenticatedUserSession | null,
   ): Promise<Result<IEventSummary, EventError>>;
-  
+
   updateEvent(
     eventId: string,
     input: UpdateEventInput,
     currentUser: IAuthenticatedUserSession | null,
   ): Promise<Result<IEventSummary, EventError>>;
-
-  getOrganizerDashboard(
-    currentUser: IAuthenticatedUserSession,
-  ): Promise<Result<IOrganizerDashboardData, EventError>>;
 }
-
-// ── Validation helpers ───────────────────────────────────────────────
 
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 5000;
@@ -185,7 +178,6 @@ function validateDateRange(start: Date, end: Date): EventError | null {
     return EndBeforeStart("End date must be after the start date.");
   }
 
-  // Events should not start in the past (allow 1-minute clock skew)
   const now = new Date();
   const oneMinuteAgo = new Date(now.getTime() - 60_000);
   if (start < oneMinuteAgo) {
@@ -198,7 +190,6 @@ function validateDateRange(start: Date, end: Date): EventError | null {
 function parseAndValidateCapacity(raw: string): Result<number, EventError> {
   const trimmed = raw.trim();
 
-  // Empty or "0" means unlimited
   if (!trimmed || trimmed === "0") {
     return Ok(0);
   }
@@ -214,11 +205,9 @@ function parseAndValidateCapacity(raw: string): Result<number, EventError> {
   return Ok(num);
 }
 
-// ── Service implementation ───────────────────────────────────────────
-
 class EventService implements IEventService {
   constructor(
-    private readonly repo: IEventRepository, 
+    private readonly repo: IEventRepository,
     private readonly rsvpRepo: IRsvpRepository,
   ) {}
 
@@ -226,23 +215,18 @@ class EventService implements IEventService {
     input: CreateEventInput,
     organizer: OrganizerIdentity,
   ): Promise<Result<IEventSummary, EventError>> {
-    // 1. Validate title
     const titleErr = validateTitle(input.title);
     if (titleErr) return Err(titleErr);
 
-    // 2. Validate description
     const descErr = validateDescription(input.description);
     if (descErr) return Err(descErr);
 
-    // 3. Validate location
     const locErr = validateLocation(input.location);
     if (locErr) return Err(locErr);
 
-    // 3.5 Validate category
     const catErr = validateCategory(input.category);
     if (catErr) return Err(catErr);
 
-    // 4. Parse & validate dates
     const startResult = parseAndValidateDate(input.startDate, "Start date");
     if (startResult.ok === false) return Err(startResult.value);
     const startDate = startResult.value;
@@ -254,12 +238,10 @@ class EventService implements IEventService {
     const rangeErr = validateDateRange(startDate, endDate);
     if (rangeErr) return Err(rangeErr);
 
-    // 5. Parse & validate capacity
     const capResult = parseAndValidateCapacity(input.capacity);
     if (capResult.ok === false) return Err(capResult.value);
     const capacity = capResult.value;
 
-    // 6. Build the event record
     const now = new Date().toISOString();
     const event: IEventRecord = {
       id: randomUUID(),
@@ -278,7 +260,6 @@ class EventService implements IEventService {
       updatedAt: now,
     };
 
-    // 7. Persist
     const created = await this.repo.create(event);
     if (created.ok === false) return Err(created.value);
 
@@ -293,7 +274,7 @@ class EventService implements IEventService {
     if (eventResult.ok === false) {
       return Err(eventResult.value);
     }
-    
+
     const event = eventResult.value;
     if (!event) {
       return Err(EventNotFound("Event not found."));
@@ -302,7 +283,7 @@ class EventService implements IEventService {
     if (event.status === "draft") {
       const isOwner = currentUser?.userId === event.organizerId;
       const isAdmin = currentUser?.role === "admin";
-      
+
       if (!isOwner && !isAdmin) {
         return Err(EventNotFound("Event not found."));
       }
@@ -313,24 +294,38 @@ class EventService implements IEventService {
 
   async listVisibleEvents(
     currentUser: IAuthenticatedUserSession | null,
+    query: string,
   ): Promise<Result<IEventRecord[], EventError>> {
     const allResult = await this.repo.findAll();
     if (allResult.ok === false) return Err(allResult.value);
-    
+
     const events = allResult.value;
     const isUserAdmin = currentUser?.role === "admin";
-    
+    const trimmedQuery = query.trim().toLowerCase();
+
     const visibleEvents = events.filter((e) => {
-      if (e.status !== "draft") return true; 
-      
-      // If draft, check permissions
-      const isOwner = currentUser?.userId === e.organizerId;
-      return isOwner || isUserAdmin;
+      if (e.status === "draft") {
+        const isOwner = currentUser?.userId === e.organizerId;
+        if (!isOwner && !isUserAdmin) {
+          return false;
+        }
+      }
+
+      if (!trimmedQuery) {
+        return true;
+      }
+
+      return (
+        e.title.toLowerCase().includes(trimmedQuery) ||
+        e.description.toLowerCase().includes(trimmedQuery) ||
+        e.location.toLowerCase().includes(trimmedQuery)
+      );
     });
-    
-    // Sort chronologically by start date
-    visibleEvents.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-    
+
+    visibleEvents.sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
+
     return Ok(visibleEvents);
   }
 
@@ -340,13 +335,13 @@ class EventService implements IEventService {
   ): Promise<Result<IEventSummary, EventError>> {
     const eventResult = await this.repo.findById(eventId);
     if (eventResult.ok === false) return Err(eventResult.value);
-    
+
     const event = eventResult.value;
     if (!event) return Err(EventNotFound("Event not found."));
 
     const isOwner = currentUser?.userId === event.organizerId;
     const isAdmin = currentUser?.role === "admin";
-    
+
     if (!isOwner && !isAdmin) {
       return Err(EventNotFound("Event not found."));
     }
@@ -365,86 +360,79 @@ class EventService implements IEventService {
   }
 
   async updateEvent(
-  eventId: string,
-  input: UpdateEventInput,
-  currentUser: IAuthenticatedUserSession | null,
-): Promise<Result<IEventSummary, EventError>> {
-  // 1. Load the event
-  const eventResult = await this.repo.findById(eventId);
-  if (eventResult.ok === false) return Err(eventResult.value);
+    eventId: string,
+    input: UpdateEventInput,
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventSummary, EventError>> {
+    const eventResult = await this.repo.findById(eventId);
+    if (eventResult.ok === false) return Err(eventResult.value);
 
-  const event = eventResult.value;
-  if (!event) {
-    return Err(EventNotFound("Event not found."));
+    const event = eventResult.value;
+    if (!event) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    const isOwner = currentUser?.userId === event.organizerId;
+    const isAdmin = currentUser?.role === "admin";
+    if (!isOwner && !isAdmin) {
+      return Err(EventNotAuthorized("You do not have permission to edit this event."));
+    }
+
+    if (event.status === "cancelled") {
+      return Err(EventInvalidState("Cancelled events cannot be edited."));
+    }
+
+    const titleErr = validateTitle(input.title);
+    if (titleErr) return Err(titleErr);
+
+    const descErr = validateDescription(input.description);
+    if (descErr) return Err(descErr);
+
+    const locErr = validateLocation(input.location);
+    if (locErr) return Err(locErr);
+
+    const catErr = validateCategory(input.category);
+    if (catErr) return Err(catErr);
+
+    const startResult = parseAndValidateDate(input.startDate, "Start date");
+    if (startResult.ok === false) return Err(startResult.value);
+    const startDate = startResult.value;
+
+    const endResult = parseAndValidateDate(input.endDate, "End date");
+    if (endResult.ok === false) return Err(endResult.value);
+    const endDate = endResult.value;
+
+    const rangeErr = validateDateRange(startDate, endDate);
+    if (rangeErr) return Err(rangeErr);
+
+    const capResult = parseAndValidateCapacity(input.capacity);
+    if (capResult.ok === false) return Err(capResult.value);
+    const capacity = capResult.value;
+
+    const updatedEvent: IEventRecord = {
+      ...event,
+      title: input.title.trim(),
+      description: input.description.trim(),
+      location: input.location.trim(),
+      category: input.category.trim(),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      capacity,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const saveResult = await this.repo.update(updatedEvent);
+    if (saveResult.ok === false) return Err(saveResult.value);
+
+    return Ok(toEventSummary(saveResult.value));
   }
-
-  // 2. Check permission: organizer or admin only
-  const isOwner = currentUser?.userId === event.organizerId;
-  const isAdmin = currentUser?.role === "admin";
-  if (!isOwner && !isAdmin) {
-    return Err(EventNotAuthorized("You do not have permission to edit this event."));
-  }
-
-  // 3. Check state: cancelled events cannot be edited
-  if (event.status === "cancelled") {
-    return Err(EventInvalidState("Cancelled events cannot be edited."));
-  }
-
-  // 4. Validate input — reuse the same helpers as createEvent
-  const titleErr = validateTitle(input.title);
-  if (titleErr) return Err(titleErr);
-
-  const descErr = validateDescription(input.description);
-  if (descErr) return Err(descErr);
-
-  const locErr = validateLocation(input.location);
-  if (locErr) return Err(locErr);
-
-  const catErr = validateCategory(input.category);
-  if (catErr) return Err(catErr);
-
-  const startResult = parseAndValidateDate(input.startDate, "Start date");
-  if (startResult.ok === false) return Err(startResult.value);
-  const startDate = startResult.value;
-
-  const endResult = parseAndValidateDate(input.endDate, "End date");
-  if (endResult.ok === false) return Err(endResult.value);
-  const endDate = endResult.value;
-
-  const rangeErr = validateDateRange(startDate, endDate);
-  if (rangeErr) return Err(rangeErr);
-
-  const capResult = parseAndValidateCapacity(input.capacity);
-  if (capResult.ok === false) return Err(capResult.value);
-  const capacity = capResult.value;
-
-  // 5. Build the updated record
-  const updatedEvent: IEventRecord = {
-    ...event,
-    title: input.title.trim(),
-    description: input.description.trim(),
-    location: input.location.trim(),
-    category: input.category.trim(),
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
-    capacity,
-    updatedAt: new Date().toISOString(),
-  };
-
-  // 6. Persist
-  const saveResult = await this.repo.update(updatedEvent);
-  if (saveResult.ok === false) return Err(saveResult.value);
-
-  return Ok(toEventSummary(saveResult.value));
-}
 
   async getOrganizerDashboard(
     currentUser: IAuthenticatedUserSession,
   ): Promise<Result<IOrganizerDashboardData, EventError>> {
-    // Block regular members
     if (currentUser.role !== "admin" && currentUser.role !== "staff") {
-  return Err(EventNotAuthorized("Members cannot access the organizer dashboard."));
-}
+      return Err(EventNotAuthorized("Members cannot access the organizer dashboard."));
+    }
 
     const eventsResult =
       currentUser.role === "admin"
@@ -505,7 +493,6 @@ class EventService implements IEventService {
       cancelledOrPast,
     });
   }
-
 }
 
 export function CreateEventService(
