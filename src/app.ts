@@ -5,6 +5,7 @@ import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
 import { IEventController } from "./event/EventController";
 import { IRsvpController } from "./rsvp/RsvpController";
+import { ISavedController } from "./saved/SavedController";
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -39,6 +40,7 @@ class ExpressApp implements IApp {
     private readonly authController: IAuthController,
     private readonly eventController: IEventController,
     private readonly rsvpController: IRsvpController,
+    private readonly savedController: ISavedController,
     private readonly logger: ILoggingService,
   ) {
     this.app = express();
@@ -242,6 +244,39 @@ class ExpressApp implements IApp {
     );
 
     this.app.get(
+      "/saved",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        await this.savedController.showSavedEvents(res, sessionStore(req));
+      }),
+    );
+
+    this.app.post(
+      "/saved/:id/toggle",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        const returnTo =
+          typeof req.body.returnTo === "string" && req.body.returnTo.trim()
+            ? req.body.returnTo
+            : "/saved";
+
+        await this.savedController.toggleSavedEvent(
+          res,
+          eventId,
+          sessionStore(req),
+          returnTo,
+        );
+      }),
+    );
+
+    this.app.get(
       "/organizer/dashboard",
       asyncHandler(async (req, res) => {
         if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can access this dashboard.")) {
@@ -401,7 +436,14 @@ export function CreateApp(
   authController: IAuthController,
   eventController: IEventController,
   rsvpController: IRsvpController,
+  savedController: ISavedController,
   logger: ILoggingService,
 ): IApp {
-  return new ExpressApp(authController, eventController, rsvpController, logger);
+  return new ExpressApp(
+    authController,
+    eventController,
+    rsvpController,
+    savedController,
+    logger,
+  );
 }
