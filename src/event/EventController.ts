@@ -287,6 +287,8 @@ class EventController implements IEventController {
       return;
     }
 
+    const isHtmx = res.req?.get?.("HX-Request") === "true";
+
     const result = await this.service.updateEvent(eventId, input, currentUser);
 
     if (result.ok === false) {
@@ -295,9 +297,6 @@ class EventController implements IEventController {
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Update event failed: ${error.message}`);
 
-      // For not-found / not-authorized / invalid-state, the form itself
-      // shouldn't be re-rendered — the user has no useful action from here.
-      // Show a plain error page instead.
       if (
         error.name === "EventNotFound" ||
         error.name === "EventNotAuthorized" ||
@@ -306,18 +305,36 @@ class EventController implements IEventController {
         res.status(status).render("partials/error", {
           message: error.message,
           session: touchAppSession(store),
+          layout: false,
         });
         return;
       }
 
-      // For ValidationError, re-render the form with the user's input
-      // so they can fix it without retyping everything.
+      // Validation error — return just the error partial for HTMX
+      if (isHtmx) {
+        res.status(status).render("partials/error", {
+          message: error.message,
+          layout: false,
+        });
+        return;
+      }
+
+      // Non-HTMX fallback: re-render the full form
       res.status(status);
       await this.showEditForm(res, eventId, store, input, error.message);
       return;
     }
 
     this.logger.info(`Updated event ${result.value.id} "${result.value.title}"`);
+
+    // HTMX redirect
+    if (isHtmx) {
+      res.set("HX-Redirect", `/events/${result.value.id}`);
+      res.status(200).send("");
+      return;
+    }
+
+    // Non-HTMX fallback
     res.redirect(`/events/${result.value.id}`);
   }
 }
