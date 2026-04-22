@@ -18,6 +18,7 @@ import {
   EventNotFound,
   EventNotAuthorized,
   EventInvalidState,
+  UnexpectedDependencyError,
   type EventError,
 } from "./errors";
 import type { IEventRepository } from "./EventRepository";
@@ -398,6 +399,10 @@ class EventService implements IEventService {
     const event = eventResult.value;
     if (!event) return Err(EventNotFound("Event not found."));
 
+    if (!currentUser) {
+      return Err(EventNotAuthorized("You must be signed in to publish an event."));
+    }
+
     const isOwner = currentUser?.userId === event.organizerId;
     const isAdmin = currentUser?.role === "admin";
 
@@ -421,22 +426,26 @@ class EventService implements IEventService {
   async cancelEvent(
     eventId: string,
     currentUser: IAuthenticatedUserSession | null,
-    ): Promise<Result<IEventSummary, EventError>> {
+  ): Promise<Result<IEventSummary, EventError>> {
     const eventResult = await this.repo.findById(eventId);
     if (eventResult.ok === false) return Err(eventResult.value);
 
     const event = eventResult.value;
     if (!event) return Err(EventNotFound("Event not found."));
 
-    const isOwner = currentUser?.userId === event.organizerId;
-    const isAdmin = currentUser?.role === "admin";
+    if (!currentUser) {
+    return Err(EventNotAuthorized("You must be signed in to cancel an event."));
+    }
+
+    const isOwner = currentUser.userId === event.organizerId;
+    const isAdmin = currentUser.role === "admin";
 
     if (!isOwner && !isAdmin) {
-    return Err(EventNotAuthorized("You do not have permission to cancel this event."));
+      return Err(EventNotAuthorized("You do not have permission to cancel this event."));
     }
 
     if (event.status !== "published") {
-    return Err(EventInvalidState("Only published events can be cancelled."));
+      return Err(EventInvalidState("Only published events can be cancelled."));
     }
 
     event.status = "cancelled";
@@ -539,7 +548,7 @@ class EventService implements IEventService {
     for (const event of eventsResult.value) {
       const countResult = await this.rsvpRepo.countGoing(event.id);
       if (countResult.ok === false) {
-        return Err(EventNotAuthorized("Could not load attendee count."));
+        return Err(UnexpectedDependencyError("Could not load attendee count."));
       }
 
       const item: IOrganizerDashboardItem = {
