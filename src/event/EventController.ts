@@ -36,6 +36,12 @@ export interface IEventController {
     store: AppSessionStore,
   ): Promise<void>;
 
+  cancelEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+  ): Promise<void>;
+
   createEventFromForm(
     res: Response,
     input: CreateEventInput,
@@ -238,6 +244,29 @@ class EventController implements IEventController {
 
     this.logger.info(`Published event ${result.value.id} "${result.value.title}"`);
     res.redirect("/home");
+  }
+
+  async cancelEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const currentUser = getAuthenticatedUser(store);
+    const result = await this.service.cancelEvent(eventId, currentUser);
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      this.logger.error(`Cancel event failed: ${error.message}`);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session: touchAppSession(store),
+      });
+      return;
+    }
+
+    this.logger.info(`Cancelled event ${result.value.id} "${result.value.title}"`);
+    res.redirect("/events/manage");
   }
 
   async createEventFromForm(

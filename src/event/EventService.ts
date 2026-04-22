@@ -96,6 +96,11 @@ export interface IEventService {
     currentUser: IAuthenticatedUserSession | null,
   ): Promise<Result<IEventSummary, EventError>>;
 
+  cancelEvent(
+    eventId: string,
+    currentUser: IAuthenticatedUserSession | null,
+  ): Promise<Result<IEventSummary, EventError>>;
+
   updateEvent(
     eventId: string,
     input: UpdateEventInput,
@@ -343,7 +348,7 @@ class EventService implements IEventService {
     const isAdmin = currentUser?.role === "admin";
 
     if (!isOwner && !isAdmin) {
-      return Err(EventNotFound("Event not found."));
+      return Err(EventNotFound("You do not have permission to publish this event."));
     }
 
     if (event.status !== "draft") {
@@ -351,6 +356,36 @@ class EventService implements IEventService {
     }
 
     event.status = "published";
+    event.updatedAt = new Date().toISOString();
+
+    const updateResult = await this.repo.update(event);
+    if (updateResult.ok === false) return Err(updateResult.value);
+
+    return Ok(toEventSummary(updateResult.value));
+  }
+
+  async cancelEvent(
+    eventId: string,
+    currentUser: IAuthenticatedUserSession | null,
+    ): Promise<Result<IEventSummary, EventError>> {
+    const eventResult = await this.repo.findById(eventId);
+    if (eventResult.ok === false) return Err(eventResult.value);
+
+    const event = eventResult.value;
+    if (!event) return Err(EventNotFound("Event not found."));
+
+    const isOwner = currentUser?.userId === event.organizerId;
+    const isAdmin = currentUser?.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+    return Err(EventNotAuthorized("You do not have permission to cancel this event."));
+    }
+
+    if (event.status !== "published") {
+    return Err(EventInvalidState("Only published events can be cancelled."));
+    }
+
+    event.status = "cancelled";
     event.updatedAt = new Date().toISOString();
 
     const updateResult = await this.repo.update(event);
