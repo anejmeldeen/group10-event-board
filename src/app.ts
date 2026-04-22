@@ -229,19 +229,20 @@ class ExpressApp implements IApp {
       }),
     );
 
-    this.app.get(
-      "/home",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
+this.app.get(
+  "/home",
+  asyncHandler(async (req, res) => {
+    if (!this.requireAuthenticated(req, res)) {
+      return;
+    }
 
-        const browserSession = recordPageView(sessionStore(req));
-        const query = typeof req.query.q === "string" ? req.query.q : "";
-        this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        await this.eventController.showDashboard(res, sessionStore(req), query);
-      }),
-    );
+    const browserSession = recordPageView(sessionStore(req));
+    const query = typeof req.query.q === "string" ? req.query.q : "";
+    const isHtmx = req.get("HX-Request") === "true";
+    this.logger.info(`GET /home for ${browserSession.browserLabel}`);
+    await this.eventController.showDashboard(res, sessionStore(req), query, isHtmx);
+  }),
+);
 
     this.app.get(
       "/saved",
@@ -266,12 +267,19 @@ class ExpressApp implements IApp {
           typeof req.body.returnTo === "string" && req.body.returnTo.trim()
             ? req.body.returnTo
             : "/saved";
+        const context =
+          typeof req.body.context === "string" && req.body.context.trim()
+            ? req.body.context
+            : "saved";
+        const isHtmx = this.isHtmxRequest(req);
 
         await this.savedController.toggleSavedEvent(
           res,
           eventId,
           sessionStore(req),
           returnTo,
+          context,
+          isHtmx,
         );
       }),
     );

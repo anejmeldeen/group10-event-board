@@ -43,7 +43,7 @@ class RsvpController implements IRsvpController {
     return 500;
   }
 
-  async toggleRsvp(
+ async toggleRsvp(
     res: Response,
     eventId: string,
     store: AppSessionStore,
@@ -56,6 +56,8 @@ class RsvpController implements IRsvpController {
       return;
     }
 
+    const isHtmx = res.req?.get?.("HX-Request") === "true";
+
     const result = await this.service.toggleRsvp(eventId, currentUser);
 
     if (result.ok === false) {
@@ -66,11 +68,24 @@ class RsvpController implements IRsvpController {
       res.status(status).render("partials/error", {
         message: error.message,
         session,
+        layout: false,
       });
       return;
     }
 
     this.logger.info(`RSVP toggled for event ${eventId}: ${result.value.newStatus}`);
+
+    if (isHtmx) {
+      const rsvpView = await this.getRsvpView(eventId, store, "published", "", result.value.capacity);
+      res.render("event/partials/rsvp", {
+        rsvpView,
+        eventId,
+        capacity: result.value.capacity,
+        layout: false,
+      });
+      return;
+    }
+
     res.redirect(`/events/${eventId}`);
   }
 
