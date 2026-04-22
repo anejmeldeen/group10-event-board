@@ -267,12 +267,19 @@ this.app.get(
           typeof req.body.returnTo === "string" && req.body.returnTo.trim()
             ? req.body.returnTo
             : "/saved";
+        const context =
+          typeof req.body.context === "string" && req.body.context.trim()
+            ? req.body.context
+            : "saved";
+        const isHtmx = this.isHtmxRequest(req);
 
         await this.savedController.toggleSavedEvent(
           res,
           eventId,
           sessionStore(req),
           returnTo,
+          context,
+          isHtmx,
         );
       }),
     );

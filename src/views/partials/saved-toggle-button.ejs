@@ -1,0 +1,18 @@
+<form
+  method="POST"
+  action="/saved/<%= eventId %>/toggle"
+  <% if (typeof htmx !== 'undefined' && htmx) { %>
+    hx-post="/saved/<%= eventId %>/toggle"
+    hx-target="this"
+    hx-swap="outerHTML"
+  <% } %>
+>
+  <input type="hidden" name="returnTo" value="<%= returnTo %>" />
+  <input type="hidden" name="context" value="<%= context %>" />
+  <button
+    type="submit"
+    class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
+  >
+    <%= saved ? "Saved" : "Save for Later" %>
+  </button>
+</form>
