@@ -61,7 +61,7 @@
                 <div class="mt-3">
                   <%- include("../partials/saved-toggle-button", {
                     eventId: event.id,
-                    saved: false,
+                    saved: typeof isSaved !== 'undefined' ? isSaved : false,
                     returnTo: `/events/${event.id}`,
                     context: "detail",
                     htmx: true,
