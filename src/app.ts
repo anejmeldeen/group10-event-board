@@ -296,7 +296,7 @@ this.app.get(
     );
 
     this.app.get("/events/manage", (req, res) =>
-      this.eventController.getOrganizerDashboard(res, req.session)
+      this.eventController.getOrganizerDashboard(res, req.session as AppSessionStore)
     );
 
     this.app.get(
@@ -384,6 +384,18 @@ this.app.get(
 
         const eventId = typeof req.params.id === "string" ? req.params.id : "";
         await this.eventController.publishEvent(res, eventId, sessionStore(req));
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/cancel",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can cancel events.")) {
+          return;
+        }
+
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        await this.eventController.cancelEvent(res, eventId, sessionStore(req));
       }),
     );
 
