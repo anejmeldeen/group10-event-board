@@ -360,7 +360,7 @@ class EventService implements IEventService {
     const isAdmin = currentUser?.role === "admin";
 
     if (!isOwner && !isAdmin) {
-      return Err(EventNotFound("You do not have permission to publish this event."));
+      return Err(EventNotAuthorized("You do not have permission to publish this event."));
     }
 
     if (event.status !== "draft") {

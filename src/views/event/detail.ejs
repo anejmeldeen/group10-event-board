@@ -51,29 +51,7 @@
 
           <div class="pt-2">
             <% if (user.role === 'admin' || user.role === 'staff') { %>
-              <div class="flex flex-col gap-3">
-                <% if (event.status === 'draft') { %>
-                  <form method="POST" action="/events/<%= event.id %>/publish" class="w-full">
-                    <button type="submit" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg cursor-pointer">
-                      Publish Event
-                    </button>
-                  </form>
-                <% } %>
-
-                <% if ((user.userId === event.organizerId || user.role === 'admin') && event.status !== 'cancelled') { %>
-                  <a href="/events/<%= event.id %>/edit" class="block w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg border border-slate-300 transition-colors text-center no-underline">
-                    Edit Event
-                  </a>
-                <% } %>
-
-                <% if (event.status === 'published') { %>
-                  <form method="POST" action="/events/<%= event.id %>/cancel" class="w-full">
-                    <button type="submit" class="w-full py-2.5 px-4 bg-white hover:bg-rose-50 text-rose-600 font-semibold rounded-lg border border-rose-200 transition-colors cursor-pointer">
-                      Cancel Event
-                    </button>
-                  </form>
-                <% } %>
-              </div>
+              <%- include("event/partials/event-status", { event, user }) %>
             <% } else { %>
               <div id="rsvp-section">
                 <%- include("partials/rsvp", { rsvpView: rsvpView, eventId: event.id, capacity: event.capacity }) %>
