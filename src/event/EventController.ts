@@ -28,6 +28,7 @@ export interface IEventController {
     res: Response,
     store: AppSessionStore,
     query: string,
+    isHtmx?: boolean,
   ): Promise<void>;
 
   publishEvent(
@@ -191,19 +192,39 @@ class EventController implements IEventController {
     res: Response,
     store: AppSessionStore,
     query: string,
+    isHtmx: boolean = false,
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
     const result = await this.service.listVisibleEvents(currentUser, query);
 
-    if (result.ok === false) {
-      res.render("home", {
-        session,
-        events: [],
+if (result.ok === false) {
+  const status = this.mapErrorStatus(result.value);
+
+  if (isHtmx) {
+    res.status(status).render("partials/error", {
+      message: result.value.message,
+      layout: false,
+    });
+    return;
+  }
+
+  res.status(status).render("home", {
+    session,
+    events: [],
+    user: currentUser,
+    pageError: result.value.message,
+    searchQuery: query,
+  });
+  return;
+}
+
+    if (isHtmx) {
+      res.render("event/partials/event-list", {
+        events: result.value,
         user: currentUser,
-        pageError: "Unable to load events.",
-        searchQuery: query,
+        layout: false,
       });
       return;
     }
@@ -371,8 +392,6 @@ class EventController implements IEventController {
       return;
     }
 
-    const isHtmx = res.req?.get?.("HX-Request") === "true";
-
     const result = await this.service.updateEvent(eventId, input, currentUser);
 
     if (result.ok === false) {
@@ -389,36 +408,16 @@ class EventController implements IEventController {
         res.status(status).render("partials/error", {
           message: error.message,
           session: touchAppSession(store),
-          layout: false,
         });
         return;
       }
 
-      // Validation error — return just the error partial for HTMX
-      if (isHtmx) {
-        res.status(status).render("partials/error", {
-          message: error.message,
-          layout: false,
-        });
-        return;
-      }
-
-      // Non-HTMX fallback: re-render the full form
       res.status(status);
       await this.showEditForm(res, eventId, store, input, error.message);
       return;
     }
 
     this.logger.info(`Updated event ${result.value.id} "${result.value.title}"`);
-
-    // HTMX redirect
-    if (isHtmx) {
-      res.set("HX-Redirect", `/events/${result.value.id}`);
-      res.status(200).send("");
-      return;
-    }
-
-    // Non-HTMX fallback
     res.redirect(`/events/${result.value.id}`);
   }
 }
