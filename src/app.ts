@@ -238,9 +238,18 @@ this.app.get(
 
     const browserSession = recordPageView(sessionStore(req));
     const query = typeof req.query.q === "string" ? req.query.q : "";
+    const category = typeof req.query.category === "string" ? req.query.category : "";
+    const timeframe = typeof req.query.timeframe === "string" ? req.query.timeframe : "";
     const isHtmx = req.get("HX-Request") === "true";
     this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-    await this.eventController.showDashboard(res, sessionStore(req), query, isHtmx);
+    await this.eventController.showDashboard(
+      res,
+      sessionStore(req),
+      query,
+      category,
+      timeframe,
+      isHtmx,
+    );
   }),
 );
 
