@@ -35,12 +35,14 @@ export interface IEventController {
     res: Response,
     eventId: string,
     store: AppSessionStore,
+    isHtmx: boolean,
   ): Promise<void>;
 
   cancelEvent(
     res: Response,
     eventId: string,
     store: AppSessionStore,
+    isHtmx: boolean,
   ): Promise<void>;
 
   createEventFromForm(
@@ -244,10 +246,11 @@ if (result.ok === false) {
     });
   }
 
-  async publishEvent(
+    async publishEvent(
     res: Response,
     eventId: string,
     store: AppSessionStore,
+    isHtmx: boolean,
   ): Promise<void> {
     const currentUser = getAuthenticatedUser(store);
     const result = await this.service.publishEvent(eventId, currentUser);
@@ -259,18 +262,30 @@ if (result.ok === false) {
       res.status(status).render("partials/error", {
         message: error.message,
         session: touchAppSession(store),
+        layout: false,
       });
       return;
     }
 
     this.logger.info(`Published event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx && currentUser) {
+      res.render("event/partials/event-status", {
+        event: result.value,
+        user: currentUser,
+        layout: false,
+      });
+      return;
+    }
+
     res.redirect("/home");
   }
 
-  async cancelEvent(
+    async cancelEvent(
     res: Response,
     eventId: string,
     store: AppSessionStore,
+    isHtmx: boolean,
   ): Promise<void> {
     const currentUser = getAuthenticatedUser(store);
     const result = await this.service.cancelEvent(eventId, currentUser);
@@ -282,11 +297,22 @@ if (result.ok === false) {
       res.status(status).render("partials/error", {
         message: error.message,
         session: touchAppSession(store),
+        layout: false,
       });
       return;
     }
 
     this.logger.info(`Cancelled event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx && currentUser) {
+      res.render("event/partials/event-status", {
+        event: result.value,
+        user: currentUser,
+        layout: false,
+      });
+      return;
+    }
+
     res.redirect("/events/manage");
   }
 

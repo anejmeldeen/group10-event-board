@@ -383,7 +383,8 @@ this.app.get(
         }
 
         const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        await this.eventController.publishEvent(res, eventId, sessionStore(req));
+        const isHtmx = this.isHtmxRequest(req);
+        await this.eventController.publishEvent(res, eventId, sessionStore(req), isHtmx);
       }),
     );
 
@@ -395,7 +396,8 @@ this.app.get(
         }
 
         const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        await this.eventController.cancelEvent(res, eventId, sessionStore(req));
+        const isHtmx = this.isHtmxRequest(req);
+        await this.eventController.cancelEvent(res, eventId, sessionStore(req), isHtmx);
       }),
     );
 
