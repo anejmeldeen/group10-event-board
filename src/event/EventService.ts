@@ -378,7 +378,13 @@ class EventService implements IEventService {
     sunday.setHours(23, 59, 59, 999);
 
     const visibleEvents = allResult.value.filter((event) => {
-      if (event.status !== "published") {
+      if (event.status === "draft") {
+        const isOwner = currentUser?.userId === event.organizerId;
+        const isAdmin = currentUser?.role === "admin";
+        if (!isOwner && !isAdmin) {
+          return false;
+        }
+      } else if (event.status !== "published") {
         return false;
       }
 

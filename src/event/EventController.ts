@@ -9,6 +9,7 @@ import {
 import type { ILoggingService } from "../service/LoggingService";
 import type { EventError } from "./errors";
 import type { IRsvpController } from "../rsvp/RsvpController";
+import type { ISavedService } from "../saved/SavedService";
 
 export interface IEventController {
   showCreateForm(
@@ -67,6 +68,7 @@ export interface IEventController {
     eventId: string,
     input: UpdateEventInput,
     store: AppSessionStore,
+    isHtmx?: boolean,
   ): Promise<void>;
 
   getOrganizerDashboard(
@@ -80,6 +82,7 @@ class EventController implements IEventController {
     private readonly service: IEventService,
     private readonly logger: ILoggingService,
     private readonly rsvpController?: IRsvpController,
+    private readonly savedService?: ISavedService,
   ) {}
 
   private mapErrorStatus(error: EventError): number {
@@ -153,11 +156,20 @@ class EventController implements IEventController {
       );
     }
 
+    let isSaved = false;
+    if (this.savedService && currentUser && currentUser.role === "user") {
+      const savedIdsResult = await this.savedService.getSavedEventIds(currentUser);
+      if (savedIdsResult.ok) {
+        isSaved = savedIdsResult.value.has(eventId);
+      }
+    }
+
     res.render("event/detail", {
       session,
       event,
       user: currentUser,
       rsvpView,
+      isSaved,
     });
   }
 
@@ -234,10 +246,19 @@ class EventController implements IEventController {
       return;
     }
 
+    let savedEventIds = new Set<string>();
+    if (this.savedService && currentUser && currentUser.role === "user") {
+      const savedIdsResult = await this.savedService.getSavedEventIds(currentUser);
+      if (savedIdsResult.ok) {
+        savedEventIds = savedIdsResult.value;
+      }
+    }
+
     if (isHtmx) {
       res.render("event/partials/event-list", {
         events: result.value,
         user: currentUser,
+        savedEventIds,
         layout: false,
       });
       return;
@@ -251,6 +272,7 @@ class EventController implements IEventController {
       searchQuery: query,
       selectedCategory: category,
       selectedTimeframe: timeframe,
+      savedEventIds,
     });
   }
 
@@ -446,6 +468,7 @@ class EventController implements IEventController {
     eventId: string,
     input: UpdateEventInput,
     store: AppSessionStore,
+    isHtmx: boolean = false,
   ): Promise<void> {
     const currentUser = getAuthenticatedUser(store);
 
@@ -471,6 +494,15 @@ class EventController implements IEventController {
         res.status(status).render("partials/error", {
           message: error.message,
           session: touchAppSession(store),
+          layout: isHtmx ? false : undefined,
+        });
+        return;
+      }
+
+      if (isHtmx) {
+        res.status(status).render("partials/error", {
+          message: error.message,
+          layout: false,
         });
         return;
       }
@@ -481,6 +513,13 @@ class EventController implements IEventController {
     }
 
     this.logger.info(`Updated event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx) {
+      res.set("HX-Redirect", `/events/${result.value.id}`);
+      res.status(200).send("");
+      return;
+    }
+
     res.redirect(`/events/${result.value.id}`);
   }
 }
@@ -489,6 +528,7 @@ export function CreateEventController(
   service: IEventService,
   logger: ILoggingService,
   rsvpController?: IRsvpController,
+  savedService?: ISavedService,
 ): IEventController {
-  return new EventController(service, logger, rsvpController);
+  return new EventController(service, logger, rsvpController, savedService);
 }
