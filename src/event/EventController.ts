@@ -28,6 +28,8 @@ export interface IEventController {
     res: Response,
     store: AppSessionStore,
     query: string,
+    category?: string,
+    timeframe?: string,
     isHtmx?: boolean,
   ): Promise<void>;
 
@@ -200,33 +202,37 @@ class EventController implements IEventController {
     res: Response,
     store: AppSessionStore,
     query: string,
+    category: string = "",
+    timeframe: string = "",
     isHtmx: boolean = false,
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
-    const result = await this.service.listVisibleEvents(currentUser, query);
+    const result = await this.service.listVisibleEvents(currentUser, query, category, timeframe);
 
-if (result.ok === false) {
-  const status = this.mapErrorStatus(result.value);
+    if (result.ok === false) {
+      const status = this.mapErrorStatus(result.value);
 
-  if (isHtmx) {
-    res.status(status).render("partials/error", {
-      message: result.value.message,
-      layout: false,
-    });
-    return;
-  }
+      if (isHtmx) {
+        res.status(status).render("partials/error", {
+          message: result.value.message,
+          layout: false,
+        });
+        return;
+      }
 
-  res.status(status).render("home", {
-    session,
-    events: [],
-    user: currentUser,
-    pageError: result.value.message,
-    searchQuery: query,
-  });
-  return;
-}
+      res.status(status).render("home", {
+        session,
+        events: [],
+        user: currentUser,
+        pageError: result.value.message,
+        searchQuery: query,
+        selectedCategory: category,
+        selectedTimeframe: timeframe,
+      });
+      return;
+    }
 
     if (isHtmx) {
       res.render("event/partials/event-list", {
@@ -243,10 +249,12 @@ if (result.ok === false) {
       user: currentUser,
       pageError: null,
       searchQuery: query,
+      selectedCategory: category,
+      selectedTimeframe: timeframe,
     });
   }
 
-    async publishEvent(
+  async publishEvent(
     res: Response,
     eventId: string,
     store: AppSessionStore,
@@ -281,7 +289,7 @@ if (result.ok === false) {
     res.redirect("/home");
   }
 
-    async cancelEvent(
+  async cancelEvent(
     res: Response,
     eventId: string,
     store: AppSessionStore,

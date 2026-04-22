@@ -86,6 +86,8 @@ export interface IEventService {
   listVisibleEvents(
     currentUser: IAuthenticatedUserSession | null,
     query: string,
+    category?: string,
+    timeframe?: string,
   ): Promise<Result<IEventRecord[], EventError>>;
 
   publishEvent(
@@ -309,6 +311,8 @@ class EventService implements IEventService {
   async listVisibleEvents(
     currentUser: IAuthenticatedUserSession | null,
     query: string,
+    category?: string,
+    timeframe?: string,
   ): Promise<Result<IEventRecord[], EventError>> {
     const queryErr = validateSearchQuery(query);
     if (queryErr) return Err(queryErr);
@@ -316,27 +320,65 @@ class EventService implements IEventService {
     const allResult = await this.repo.findAll();
     if (allResult.ok === false) return Err(allResult.value);
 
-    const events = allResult.value;
-    const isUserAdmin = currentUser?.role === "admin";
+    const now = new Date();
     const trimmedQuery = query.trim().toLowerCase();
+    const trimmedCategory = (category ?? "").trim().toLowerCase();
+    const trimmedTimeframe = (timeframe ?? "").trim().toLowerCase();
 
-    const visibleEvents = events.filter((e) => {
-      if (e.status === "draft") {
-        const isOwner = currentUser?.userId === e.organizerId;
-        if (!isOwner && !isUserAdmin) {
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfToday);
+    const daysUntilSunday = (7 - endOfWeek.getDay()) % 7;
+    endOfWeek.setDate(endOfWeek.getDate() + daysUntilSunday);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const saturday = new Date(startOfToday);
+    const daysUntilSaturday = (6 - saturday.getDay() + 7) % 7;
+    saturday.setDate(saturday.getDate() + daysUntilSaturday);
+    saturday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(saturday);
+    sunday.setDate(sunday.getDate() + 1);
+    sunday.setHours(23, 59, 59, 999);
+
+    const visibleEvents = allResult.value.filter((event) => {
+      if (event.status !== "published") {
+        return false;
+      }
+
+      const eventStart = new Date(event.startDate);
+      if (eventStart < now) {
+        return false;
+      }
+
+      if (trimmedQuery) {
+        const matchesQuery =
+          event.title.toLowerCase().includes(trimmedQuery) ||
+          event.description.toLowerCase().includes(trimmedQuery) ||
+          event.location.toLowerCase().includes(trimmedQuery);
+
+        if (!matchesQuery) {
           return false;
         }
       }
 
-      if (!trimmedQuery) {
-        return true;
+      if (trimmedCategory && event.category.toLowerCase() !== trimmedCategory) {
+        return false;
       }
 
-      return (
-        e.title.toLowerCase().includes(trimmedQuery) ||
-        e.description.toLowerCase().includes(trimmedQuery) ||
-        e.location.toLowerCase().includes(trimmedQuery)
-      );
+      if (trimmedTimeframe === "this-week") {
+        if (eventStart < startOfToday || eventStart > endOfWeek) {
+          return false;
+        }
+      } else if (trimmedTimeframe === "this-weekend") {
+        if (eventStart < saturday || eventStart > sunday) {
+          return false;
+        }
+      } else {
+      }
+
+      return true;
     });
 
     visibleEvents.sort(
