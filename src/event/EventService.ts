@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { Ok, Err, type Result } from "../lib/result";
 import {
+  ValidationError,
   MissingRequiredField,
   FieldTooShort,
   FieldTooLong,
@@ -175,6 +176,34 @@ function validateSearchQuery(query: string): EventError | null {
   return null;
 }
 
+function validateFilterCategory(category: string): EventError | null {
+  const trimmed = category.trim().toLowerCase();
+  if (!trimmed) {
+    return null;
+  }
+
+  const allowedCategories = ["social", "educational", "volunteer", "sports", "arts"];
+  if (!allowedCategories.includes(trimmed)) {
+    return ValidationError("Invalid category filter.", "category");
+  }
+
+  return null;
+}
+
+function validateFilterTimeframe(timeframe: string): EventError | null {
+  const trimmed = timeframe.trim().toLowerCase();
+  if (!trimmed) {
+    return null;
+  }
+
+  const allowedTimeframes = ["this-week", "this-weekend"];
+  if (!allowedTimeframes.includes(trimmed)) {
+    return ValidationError("Invalid timeframe filter.", "timeframe");
+  }
+
+  return null;
+}
+
 function parseAndValidateDate(raw: string, fieldName: string): Result<Date, EventError> {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -317,6 +346,12 @@ class EventService implements IEventService {
     const queryErr = validateSearchQuery(query);
     if (queryErr) return Err(queryErr);
 
+    const categoryErr = validateFilterCategory(category ?? "");
+    if (categoryErr) return Err(categoryErr);
+
+    const timeframeErr = validateFilterTimeframe(timeframe ?? "");
+    if (timeframeErr) return Err(timeframeErr);
+
     const allResult = await this.repo.findAll();
     if (allResult.ok === false) return Err(allResult.value);
 
@@ -375,7 +410,6 @@ class EventService implements IEventService {
         if (eventStart < saturday || eventStart > sunday) {
           return false;
         }
-      } else {
       }
 
       return true;
@@ -421,7 +455,7 @@ class EventService implements IEventService {
   async cancelEvent(
     eventId: string,
     currentUser: IAuthenticatedUserSession | null,
-    ): Promise<Result<IEventSummary, EventError>> {
+  ): Promise<Result<IEventSummary, EventError>> {
     const eventResult = await this.repo.findById(eventId);
     if (eventResult.ok === false) return Err(eventResult.value);
 
@@ -432,11 +466,11 @@ class EventService implements IEventService {
     const isAdmin = currentUser?.role === "admin";
 
     if (!isOwner && !isAdmin) {
-    return Err(EventNotAuthorized("You do not have permission to cancel this event."));
+      return Err(EventNotAuthorized("You do not have permission to cancel this event."));
     }
 
     if (event.status !== "published") {
-    return Err(EventInvalidState("Only published events can be cancelled."));
+      return Err(EventInvalidState("Only published events can be cancelled."));
     }
 
     event.status = "cancelled";
