@@ -229,19 +229,20 @@ class ExpressApp implements IApp {
       }),
     );
 
-    this.app.get(
-      "/home",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
+this.app.get(
+  "/home",
+  asyncHandler(async (req, res) => {
+    if (!this.requireAuthenticated(req, res)) {
+      return;
+    }
 
-        const browserSession = recordPageView(sessionStore(req));
-        const query = typeof req.query.q === "string" ? req.query.q : "";
-        this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        await this.eventController.showDashboard(res, sessionStore(req), query);
-      }),
-    );
+    const browserSession = recordPageView(sessionStore(req));
+    const query = typeof req.query.q === "string" ? req.query.q : "";
+    const isHtmx = req.get("HX-Request") === "true";
+    this.logger.info(`GET /home for ${browserSession.browserLabel}`);
+    await this.eventController.showDashboard(res, sessionStore(req), query, isHtmx);
+  }),
+);
 
     this.app.get(
       "/saved",

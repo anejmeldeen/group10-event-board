@@ -26,7 +26,6 @@ import { toEventSummary } from "./Event";
 import type { IAuthenticatedUserSession } from "../session/AppSession";
 import type { IRsvpRepository } from "../rsvp/RsvpRepository";
 
-/** Raw input coming from the form (all strings). */
 export interface CreateEventInput {
   title: string;
   description: string;
@@ -37,7 +36,6 @@ export interface CreateEventInput {
   capacity: string;
 }
 
-/** Raw input from the edit form. Same shape as CreateEventInput. */
 export interface UpdateEventInput {
   title: string;
   description: string;
@@ -48,7 +46,6 @@ export interface UpdateEventInput {
   capacity: string;
 }
 
-/** Identity of the organizer, extracted from the session — never from the form. */
 export interface OrganizerIdentity {
   userId: string;
   displayName: string;
@@ -108,6 +105,7 @@ const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_LOCATION_LENGTH = 300;
 const MAX_CATEGORY_LENGTH = 100;
 const MAX_CAPACITY = 100_000;
+const MAX_SEARCH_QUERY_LENGTH = 100;
 
 function validateTitle(title: string): EventError | null {
   const trimmed = title.trim();
@@ -155,6 +153,17 @@ function validateCategory(category: string): EventError | null {
   }
   if (trimmed.length > MAX_CATEGORY_LENGTH) {
     return FieldTooLong(`Category must be at most ${MAX_CATEGORY_LENGTH} characters.`, "category");
+  }
+  return null;
+}
+
+function validateSearchQuery(query: string): EventError | null {
+  const trimmed = query.trim();
+  if (trimmed.length > MAX_SEARCH_QUERY_LENGTH) {
+    return FieldTooLong(
+      `Search query must be at most ${MAX_SEARCH_QUERY_LENGTH} characters.`,
+      "query",
+    );
   }
   return null;
 }
@@ -296,6 +305,9 @@ class EventService implements IEventService {
     currentUser: IAuthenticatedUserSession | null,
     query: string,
   ): Promise<Result<IEventRecord[], EventError>> {
+    const queryErr = validateSearchQuery(query);
+    if (queryErr) return Err(queryErr);
+
     const allResult = await this.repo.findAll();
     if (allResult.ok === false) return Err(allResult.value);
 

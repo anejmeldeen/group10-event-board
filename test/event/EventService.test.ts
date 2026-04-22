@@ -4,6 +4,7 @@ import { CreateInMemoryRsvpRepository } from "../../src/rsvp/InMemoryRsvpReposit
 import type { IEventRepository } from "../../src/event/EventRepository";
 import type { IAuthenticatedUserSession } from "../../src/session/AppSession";
 
+// Helper to create a test event directly in the repo
 async function seedPublishedEvent(
   repo: IEventRepository,
   overrides: Partial<import("../../src/event/Event").IEventRecord> = {},
