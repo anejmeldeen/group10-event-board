@@ -51,7 +51,7 @@
 
           <div class="pt-2">
             <% if (user.role === 'admin' || user.role === 'staff') { %>
-              <%- include("event/partials/event-status", { event, user }) %>
+              <%- include("partials/event-status", { event, user }) %>
             <% } else { %>
               <div id="rsvp-section">
                 <%- include("partials/rsvp", { rsvpView: rsvpView, eventId: event.id, capacity: event.capacity }) %>
