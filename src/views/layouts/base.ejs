@@ -3,10 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Project Starter</title>
+    <title>Events Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script>document.addEventListener("htmx:beforeSwap", function(e) { if (e.detail.xhr.status >= 400) { e.detail.shouldSwap = true; e.detail.isError = false; } });</script>
   </head>
   <body class="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900 p-6">
     <div class="max-w-5xl mx-auto">
@@ -16,15 +17,19 @@
           class="inline-flex items-center gap-2.5 px-4 py-3 rounded-xl bg-white border border-slate-200 shadow-lg font-bold text-slate-900 no-underline"
         >
           <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-b from-blue-400 to-blue-600"></span>
-          Project Starter
+          Events Dashboard
         </a>
         <div class="flex items-center gap-3 flex-wrap">
           <% if (session?.authenticatedUser) { %>
             <% if (session.authenticatedUser.role === "admin" || session.authenticatedUser.role === "staff") { %>
+              <a href="/organizer/dashboard" class="text-blue-700 font-semibold no-underline hover:underline">My Events</a>
               <a href="/events/create" class="px-3 py-1.5 bg-blue-50 text-blue-700 font-semibold rounded-md border border-blue-200 no-underline hover:bg-blue-100 ease-in-out duration-200 transition-colors">Create Event</a>
             <% } %>
             <% if (session.authenticatedUser.role === "admin") { %>
               <a href="/admin/users" class="text-blue-700 font-semibold no-underline hover:underline">Manage Users</a>
+            <% } %>
+            <% if (session.authenticatedUser.role === "user") { %>
+              <a href="/rsvps/me" class="text-blue-700 font-semibold no-underline hover:underline">My RSVPs</a>
             <% } %>
             <span class="text-slate-500">
               Signed in as <strong class="text-slate-700"><%= session.authenticatedUser.displayName %></strong>

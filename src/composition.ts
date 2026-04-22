@@ -18,27 +18,37 @@ import { CreateInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
 import { CreateRsvpService } from "./rsvp/RsvpService";
 import { CreateRsvpController } from "./rsvp/RsvpController";
 
+// Saved
+import { CreateInMemorySavedRepository } from "./saved/InMemorySavedRepository";
+import { CreateSavedService } from "./saved/SavedService";
+import { CreateSavedController } from "./saved/SavedController";
+
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
 
-  // Authentication & authorization wiring
   const authUsers = CreateInMemoryUserRepository();
   const passwordHasher = CreatePasswordHasher();
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  // Event wiring
   const eventRepository = CreateInMemoryEventRepository();
-  const eventService = CreateEventService(eventRepository);
-  
-
-  // RSVP wiring
   const rsvpRepository = CreateInMemoryRsvpRepository();
-  const rsvpService = CreateRsvpService(rsvpRepository, eventRepository);
-  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
+  const savedRepository = CreateInMemorySavedRepository();
 
+  const eventService = CreateEventService(eventRepository, rsvpRepository);
+  const rsvpService = CreateRsvpService(rsvpRepository, eventRepository);
+  const savedService = CreateSavedService(savedRepository, eventRepository);
+
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
+  const savedController = CreateSavedController(savedService, resolvedLogger);
   const eventController = CreateEventController(eventService, resolvedLogger, rsvpController);
-  
-  return CreateApp(authController, eventController, rsvpController, resolvedLogger);
+
+  return CreateApp(
+    authController,
+    eventController,
+    rsvpController,
+    savedController,
+    resolvedLogger,
+  );
 }

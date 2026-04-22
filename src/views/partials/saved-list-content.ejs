@@ -1,0 +1,51 @@
+<% if (!events || events.length === 0) { %>
+  <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
+    <h3 class="text-lg font-bold text-slate-900">No saved events</h3>
+    <p class="text-slate-500 mt-1">You have not saved any events yet.</p>
+  </div>
+<% } else { %>
+  <div class="space-y-8">
+    <% events.forEach(event => { %>
+      <article class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+        <div class="flex flex-col md:flex-row">
+          <div class="flex-grow p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-slate-900 tracking-tight leading-tight"><%= event.title %></h2>
+            <div class="flex items-center text-slate-500 mt-2 text-sm font-medium gap-4">
+              <div class="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                <%= event.category %>
+              </div>
+              <div><%= event.location %></div>
+              <div><time><%= new Date(event.startDate).toLocaleString() %></time></div>
+            </div>
+
+            <p class="text-slate-600 line-clamp-3 leading-relaxed mt-4 mb-6"><%= event.description %></p>
+
+            <div class="text-sm text-slate-400 font-medium">
+              By <%= event.organizerName %>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 border-l border-slate-100 p-6 md:p-8 flex flex-col justify-center min-w-[240px] gap-3">
+            <a href="/events/<%= event.id %>" class="w-full inline-block text-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg no-underline">
+              View Event
+            </a>
+
+            <form
+              method="POST"
+              action="/saved/<%= event.id %>/toggle"
+              hx-post="/saved/<%= event.id %>/toggle"
+              hx-target="#saved-list-content"
+              hx-swap="innerHTML"
+            >
+              <input type="hidden" name="returnTo" value="/saved" />
+              <input type="hidden" name="context" value="saved" />
+              <button type="submit" class="w-full py-3 px-4 bg-white hover:bg-rose-50 text-rose-600 font-semibold rounded-lg border border-rose-200 transition-colors cursor-pointer">
+                Remove Saved Event
+              </button>
+            </form>
+          </div>
+        </div>
+      </article>
+    <% }) %>
+  </div>
+<% } %>
