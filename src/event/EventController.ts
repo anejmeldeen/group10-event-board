@@ -300,71 +300,26 @@ class EventController implements IEventController {
     this.logger.info(`Published event ${result.value.id} "${result.value.title}"`);
 
     if (isHtmx && currentUser) {
-  const dashboardResult = await this.service.getOrganizerDashboard(currentUser);
+      const hxTarget = res.req?.get?.("HX-Target") ?? "";
 
-  if (dashboardResult.ok === false) {
-    const error = dashboardResult.value;
-    const status = this.mapErrorStatus(error);
-    res.status(status).render("partials/error", {
-      message: error.message,
-      session: touchAppSession(store),
-      layout: false,
-    });
-    return;
-  }
+      if (hxTarget === "event-lifecycle-controls") {
+        const eventResult = await this.service.getEventDetails(eventId, currentUser);
+        if (eventResult.ok === false) {
+          res.status(this.mapErrorStatus(eventResult.value)).render("partials/error", {
+            message: eventResult.value.message,
+            session: touchAppSession(store),
+            layout: false,
+          });
+          return;
+        }
+        res.render("event/partials/event-status", {
+          event: eventResult.value,
+          user: currentUser,
+          layout: false,
+        });
+        return;
+      }
 
-  const allItems = [
-    ...dashboardResult.value.draft,
-    ...dashboardResult.value.published,
-    ...dashboardResult.value.cancelledOrPast,
-  ];
-
-  const item = allItems.find((entry) => entry.id === result.value.id);
-
-  if (!item) {
-    res.status(404).render("partials/error", {
-      message: "Updated dashboard row could not be found.",
-      session: touchAppSession(store),
-      layout: false,
-    });
-    return;
-  }
-
-  res.render("event/partials/organizer-dashboard-row", {
-    item,
-    user: currentUser,
-    layout: false,
-  });
-  return;
-}
-
-    res.redirect("/home");
-  }
-
-  async cancelEvent(
-    res: Response,
-    eventId: string,
-    store: AppSessionStore,
-    isHtmx: boolean,
-  ): Promise<void> {
-    const currentUser = getAuthenticatedUser(store);
-    const result = await this.service.cancelEvent(eventId, currentUser);
-
-    if (result.ok === false) {
-      const error = result.value;
-      const status = this.mapErrorStatus(error);
-      this.logger.error(`Cancel event failed: ${error.message}`);
-      res.status(status).render("partials/error", {
-        message: error.message,
-        session: touchAppSession(store),
-        layout: false,
-      });
-      return;
-    }
-
-    this.logger.info(`Cancelled event ${result.value.id} "${result.value.title}"`);
-
-    if (isHtmx && currentUser) {
       const dashboardResult = await this.service.getOrganizerDashboard(currentUser);
 
       if (dashboardResult.ok === false) {
@@ -396,12 +351,97 @@ class EventController implements IEventController {
       }
 
       res.render("event/partials/organizer-dashboard-row", {
-      item,
-      user: currentUser,
-      layout: false,
-    });
-    return;
+        item,
+        user: currentUser,
+        layout: false,
+      });
+      return;
+    }
+
+    res.redirect("/home");
   }
+
+  async cancelEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+    isHtmx: boolean,
+  ): Promise<void> {
+    const currentUser = getAuthenticatedUser(store);
+    const result = await this.service.cancelEvent(eventId, currentUser);
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      this.logger.error(`Cancel event failed: ${error.message}`);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session: touchAppSession(store),
+        layout: false,
+      });
+      return;
+    }
+
+    this.logger.info(`Cancelled event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx && currentUser) {
+      const hxTarget = res.req?.get?.("HX-Target") ?? "";
+
+      if (hxTarget === "event-lifecycle-controls") {
+        const eventResult = await this.service.getEventDetails(eventId, currentUser);
+        if (eventResult.ok === false) {
+          res.status(this.mapErrorStatus(eventResult.value)).render("partials/error", {
+            message: eventResult.value.message,
+            session: touchAppSession(store),
+            layout: false,
+          });
+          return;
+        }
+        res.render("event/partials/event-status", {
+          event: eventResult.value,
+          user: currentUser,
+          layout: false,
+        });
+        return;
+      }
+
+      const dashboardResult = await this.service.getOrganizerDashboard(currentUser);
+
+      if (dashboardResult.ok === false) {
+        const error = dashboardResult.value;
+        const status = this.mapErrorStatus(error);
+        res.status(status).render("partials/error", {
+          message: error.message,
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      const allItems = [
+        ...dashboardResult.value.draft,
+        ...dashboardResult.value.published,
+        ...dashboardResult.value.cancelledOrPast,
+      ];
+
+      const item = allItems.find((entry) => entry.id === result.value.id);
+
+      if (!item) {
+        res.status(404).render("partials/error", {
+          message: "Updated dashboard row could not be found.",
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      res.render("event/partials/organizer-dashboard-row", {
+        item,
+        user: currentUser,
+        layout: false,
+      });
+      return;
+    }
 
     res.redirect("/events/manage");
   }
