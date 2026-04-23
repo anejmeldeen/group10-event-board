@@ -6,11 +6,22 @@
     </p>
   </div>
 
-  <% if (pageError) { %>
-    <%- include("../partials/error", { message: pageError }) %>
-  <% } %>
+  <!-- Error container — HTMX swaps error partials in here -->
+  <div id="form-errors">
+    <% if (pageError) { %>
+      <%- include("../partials/error", { message: pageError }) %>
+    <% } %>
+  </div>
 
-  <form method="post" action="/events/create" class="space-y-5">
+  <form
+    id="create-event-form"
+    method="post"
+    action="/events/create"
+    hx-post="/events/create"
+    hx-target="#form-errors"
+    hx-swap="innerHTML"
+    class="space-y-5"
+  >
     <div>
       <label for="title" class="block text-sm font-medium text-slate-700 mb-1">Event Title *</label>
       <input
@@ -116,6 +127,7 @@
       </a>
       <button
         type="submit"
+        id="create-event-submit"
         class="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-sm"
       >
         Save as Draft

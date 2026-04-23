@@ -1,0 +1,22 @@
+<% if (pageError) { %>
+  <%- include("partials/error", { message: pageError }) %>
+<% } %>
+
+<div class="space-y-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Saved Events</h1>
+      <p class="text-slate-500 mt-1">Events you bookmarked for later.</p>
+    </div>
+    <a
+      href="/home"
+      class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-sm transition-colors no-underline"
+    >
+      Back to Home
+    </a>
+  </div>
+
+  <div id="saved-list-content">
+    <%- include("partials/saved-list-content", { events, user }) %>
+  </div>
+</div>

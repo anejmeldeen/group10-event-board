@@ -9,6 +9,7 @@ import {
 import type { ILoggingService } from "../service/LoggingService";
 import type { EventError } from "./errors";
 import type { IRsvpController } from "../rsvp/RsvpController";
+import type { ISavedService } from "../saved/SavedService";
 
 export interface IEventController {
   showCreateForm(
@@ -27,18 +28,31 @@ export interface IEventController {
   showDashboard(
     res: Response,
     store: AppSessionStore,
+    query: string,
+    category?: string,
+    timeframe?: string,
+    isHtmx?: boolean,
   ): Promise<void>;
 
   publishEvent(
     res: Response,
     eventId: string,
     store: AppSessionStore,
+    isHtmx: boolean,
+  ): Promise<void>;
+
+  cancelEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+    isHtmx: boolean,
   ): Promise<void>;
 
   createEventFromForm(
     res: Response,
     input: CreateEventInput,
     store: AppSessionStore,
+    isHtmx?: boolean,
   ): Promise<void>;
 
   showEditForm(
@@ -54,6 +68,7 @@ export interface IEventController {
     eventId: string,
     input: UpdateEventInput,
     store: AppSessionStore,
+    isHtmx?: boolean,
   ): Promise<void>;
 
   getOrganizerDashboard(
@@ -67,14 +82,30 @@ class EventController implements IEventController {
     private readonly service: IEventService,
     private readonly logger: ILoggingService,
     private readonly rsvpController?: IRsvpController,
+    private readonly savedService?: ISavedService,
   ) {}
 
   private mapErrorStatus(error: EventError): number {
-    if (error.name === "ValidationError") return 400;
-    if (error.name === "EventNotFound") return 404;
-    if (error.name === "EventNotAuthorized") return 403;
-    if (error.name === "EventInvalidState") return 409;
-    return 500;
+    switch (error.name) {
+      case "ValidationError":
+      case "MissingRequiredField":
+      case "FieldTooShort":
+      case "FieldTooLong":
+      case "InvalidDateFormat":
+      case "EndBeforeStart":
+      case "StartDateInPast":
+      case "InvalidCapacity":
+        return 400;
+      case "EventNotFound":
+        return 404;
+      case "EventNotAuthorized":
+        return 403;
+      case "EventInvalidState":
+        return 409;
+      case "UnexpectedDependencyError":
+      default:
+        return 500;
+    }
   }
 
   async showCreateForm(
@@ -93,7 +124,7 @@ class EventController implements IEventController {
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
-    
+
     const result = await this.service.getEventDetails(eventId, currentUser);
 
     if (result.ok === false) {
@@ -108,18 +139,38 @@ class EventController implements IEventController {
 
     const event = result.value;
 
-    // Build RSVP view data if the RSVP controller is available
-    let rsvpView: { canRsvp: boolean; currentStatus: string; goingCount: number; capacity: number } = { canRsvp: false, currentStatus: "none", goingCount: event.attendeeCount, capacity: event.capacity };
+    let rsvpView: { canRsvp: boolean; currentStatus: string; goingCount: number; capacity: number } = {
+      canRsvp: false,
+      currentStatus: "none",
+      goingCount: event.attendeeCount,
+      capacity: event.capacity,
+    };
+
     if (this.rsvpController) {
-      rsvpView = await this.rsvpController.getRsvpView(eventId, store, event.status, event.organizerId, event.capacity);
+      rsvpView = await this.rsvpController.getRsvpView(
+        eventId,
+        store,
+        event.status,
+        event.organizerId,
+        event.capacity,
+      );
     }
 
-    res.render("event/detail", { 
-      session, 
+    let isSaved = false;
+    if (this.savedService && currentUser && currentUser.role === "user") {
+      const savedIdsResult = await this.savedService.getSavedEventIds(currentUser);
+      if (savedIdsResult.ok) {
+        isSaved = savedIdsResult.value.has(eventId);
+      }
+    }
+
+    res.render("event/detail", {
+      session,
       event,
       user: currentUser,
       rsvpView,
-    }); 
+      isSaved,
+    });
   }
 
   async getOrganizerDashboard(
@@ -129,51 +180,86 @@ class EventController implements IEventController {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
-  if (!currentUser) {
-    res.redirect("/login");
-    return;
-  }
+    if (!currentUser) {
+      res.redirect("/login");
+      return;
+    }
 
-  const result = await this.service.getOrganizerDashboard(currentUser);
+    const result = await this.service.getOrganizerDashboard(currentUser);
 
-  if (result.ok === false) {
-    const error = result.value;
-    const status = this.mapErrorStatus(error);
-    const log = status >= 500 ? this.logger.error : this.logger.warn;
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
 
-    log.call(this.logger, `Organizer dashboard failed: ${error.message}`);
+      log.call(this.logger, `Organizer dashboard failed: ${error.message}`);
 
-    res.status(status).render("partials/error", {
-      message: error.message,
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session,
+      });
+      return;
+    }
+
+    res.render("event/organizer-dashboard", {
+      draft: result.value.draft,
+      published: result.value.published,
+      cancelledOrPast: result.value.cancelledOrPast,
       session,
+      pageError: null,
     });
-    return;
   }
 
-  res.render("event/organizer-dashboard", {
-    draft: result.value.draft,
-    published: result.value.published,
-    cancelledOrPast: result.value.cancelledOrPast,
-    session,
-    pageError: null,
-  });
-}
-  
   async showDashboard(
     res: Response,
     store: AppSessionStore,
+    query: string,
+    category: string = "",
+    timeframe: string = "",
+    isHtmx: boolean = false,
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
-    const result = await this.service.listVisibleEvents(currentUser);
+    const result = await this.service.listVisibleEvents(currentUser, query, category, timeframe);
 
     if (result.ok === false) {
-      res.render("home", {
+      const status = this.mapErrorStatus(result.value);
+
+      if (isHtmx) {
+        res.status(status).render("partials/error", {
+          message: result.value.message,
+          layout: false,
+        });
+        return;
+      }
+
+      res.status(status).render("home", {
         session,
         events: [],
         user: currentUser,
-        pageError: "Unable to load events."
+        pageError: result.value.message,
+        searchQuery: query,
+        selectedCategory: category,
+        selectedTimeframe: timeframe,
+      });
+      return;
+    }
+
+    let savedEventIds = new Set<string>();
+    if (this.savedService && currentUser && currentUser.role === "user") {
+      const savedIdsResult = await this.savedService.getSavedEventIds(currentUser);
+      if (savedIdsResult.ok) {
+        savedEventIds = savedIdsResult.value;
+      }
+    }
+
+    if (isHtmx) {
+      res.render("event/partials/event-list", {
+        events: result.value,
+        user: currentUser,
+        savedEventIds,
+        layout: false,
       });
       return;
     }
@@ -182,7 +268,11 @@ class EventController implements IEventController {
       session,
       events: result.value,
       user: currentUser,
-      pageError: null
+      pageError: null,
+      searchQuery: query,
+      selectedCategory: category,
+      selectedTimeframe: timeframe,
+      savedEventIds,
     });
   }
 
@@ -190,10 +280,11 @@ class EventController implements IEventController {
     res: Response,
     eventId: string,
     store: AppSessionStore,
+    isHtmx: boolean,
   ): Promise<void> {
     const currentUser = getAuthenticatedUser(store);
     const result = await this.service.publishEvent(eventId, currentUser);
-    
+
     if (result.ok === false) {
       const error = result.value;
       const status = this.mapErrorStatus(error);
@@ -201,26 +292,179 @@ class EventController implements IEventController {
       res.status(status).render("partials/error", {
         message: error.message,
         session: touchAppSession(store),
+        layout: false,
       });
       return;
     }
 
     this.logger.info(`Published event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx && currentUser) {
+      const hxTarget = res.req?.get?.("HX-Target") ?? "";
+
+      if (hxTarget === "event-lifecycle-controls") {
+        const eventResult = await this.service.getEventDetails(eventId, currentUser);
+        if (eventResult.ok === false) {
+          res.status(this.mapErrorStatus(eventResult.value)).render("partials/error", {
+            message: eventResult.value.message,
+            session: touchAppSession(store),
+            layout: false,
+          });
+          return;
+        }
+        res.render("event/partials/event-status", {
+          event: eventResult.value,
+          user: currentUser,
+          layout: false,
+        });
+        return;
+      }
+
+      const dashboardResult = await this.service.getOrganizerDashboard(currentUser);
+
+      if (dashboardResult.ok === false) {
+        const error = dashboardResult.value;
+        const status = this.mapErrorStatus(error);
+        res.status(status).render("partials/error", {
+          message: error.message,
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      const allItems = [
+        ...dashboardResult.value.draft,
+        ...dashboardResult.value.published,
+        ...dashboardResult.value.cancelledOrPast,
+      ];
+
+      const item = allItems.find((entry) => entry.id === result.value.id);
+
+      if (!item) {
+        res.status(404).render("partials/error", {
+          message: "Updated dashboard row could not be found.",
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      res.render("event/partials/organizer-dashboard-row", {
+        item,
+        user: currentUser,
+        layout: false,
+      });
+      return;
+    }
+
     res.redirect("/home");
+  }
+
+  async cancelEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+    isHtmx: boolean,
+  ): Promise<void> {
+    const currentUser = getAuthenticatedUser(store);
+    const result = await this.service.cancelEvent(eventId, currentUser);
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      this.logger.error(`Cancel event failed: ${error.message}`);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session: touchAppSession(store),
+        layout: false,
+      });
+      return;
+    }
+
+    this.logger.info(`Cancelled event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx && currentUser) {
+      const hxTarget = res.req?.get?.("HX-Target") ?? "";
+
+      if (hxTarget === "event-lifecycle-controls") {
+        const eventResult = await this.service.getEventDetails(eventId, currentUser);
+        if (eventResult.ok === false) {
+          res.status(this.mapErrorStatus(eventResult.value)).render("partials/error", {
+            message: eventResult.value.message,
+            session: touchAppSession(store),
+            layout: false,
+          });
+          return;
+        }
+        res.render("event/partials/event-status", {
+          event: eventResult.value,
+          user: currentUser,
+          layout: false,
+        });
+        return;
+      }
+
+      const dashboardResult = await this.service.getOrganizerDashboard(currentUser);
+
+      if (dashboardResult.ok === false) {
+        const error = dashboardResult.value;
+        const status = this.mapErrorStatus(error);
+        res.status(status).render("partials/error", {
+          message: error.message,
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      const allItems = [
+        ...dashboardResult.value.draft,
+        ...dashboardResult.value.published,
+        ...dashboardResult.value.cancelledOrPast,
+      ];
+
+      const item = allItems.find((entry) => entry.id === result.value.id);
+
+      if (!item) {
+        res.status(404).render("partials/error", {
+          message: "Updated dashboard row could not be found.",
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      res.render("event/partials/organizer-dashboard-row", {
+        item,
+        user: currentUser,
+        layout: false,
+      });
+      return;
+    }
+
+    res.redirect("/events/manage");
   }
 
   async createEventFromForm(
     res: Response,
     input: CreateEventInput,
     store: AppSessionStore,
+    isHtmx: boolean = false,
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
-    
-    // Safety check - the route should have already guarded this
+
     if (!currentUser) {
       this.logger.error("Attempted to create event without authenticated user");
-      res.redirect("/login");
+      if (isHtmx) {
+        res.status(401).render("partials/error", {
+          message: "Please log in to continue.",
+          layout: false,
+        });
+      } else {
+        res.redirect("/login");
+      }
       return;
     }
 
@@ -236,16 +480,27 @@ class EventController implements IEventController {
       const status = this.mapErrorStatus(error);
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Create event failed: ${error.message}`);
-      
-      res.status(status);
-      await this.showCreateForm(res, session, input, error.message);
+
+      if (isHtmx) {
+        res.status(status).render("partials/error", {
+          message: error.message,
+          layout: false,
+        });
+      } else {
+        res.status(status);
+        await this.showCreateForm(res, session, input, error.message);
+      }
       return;
     }
 
     this.logger.info(`Created event ${result.value.id} "${result.value.title}"`);
-    
-    // Redirect to home dashboard directly per user request
-    res.redirect("/home"); 
+
+    if (isHtmx) {
+      res.set("HX-Redirect", "/home");
+      res.status(200).send("");
+    } else {
+      res.redirect("/home");
+    }
   }
 
   async showEditForm(
@@ -258,9 +513,6 @@ class EventController implements IEventController {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
-    // Load the event so we can both check permission and pre-fill the form.
-    // We deliberately use the service (not the repo directly) so the draft
-    // visibility rule and any other business logic is applied consistently.
     const result = await this.service.getEventDetails(eventId, currentUser);
 
     if (result.ok === false) {
@@ -275,8 +527,6 @@ class EventController implements IEventController {
 
     const event = result.value;
 
-    // Check permission here so the user gets a real 403 instead of seeing
-    // the form and only being told no after they hit Save.
     const isOwner = currentUser?.userId === event.organizerId;
     const isAdmin = currentUser?.role === "admin";
     if (!isOwner && !isAdmin) {
@@ -295,8 +545,6 @@ class EventController implements IEventController {
       return;
     }
 
-    // Pre-fill the form with the current event values, unless the caller
-    // passed `input` (which happens when re-rendering after a validation error).
     const formInput: Partial<UpdateEventInput> = {
       title: input.title ?? event.title,
       description: input.description ?? event.description,
@@ -320,6 +568,7 @@ class EventController implements IEventController {
     eventId: string,
     input: UpdateEventInput,
     store: AppSessionStore,
+    isHtmx: boolean = false,
   ): Promise<void> {
     const currentUser = getAuthenticatedUser(store);
 
@@ -337,9 +586,6 @@ class EventController implements IEventController {
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Update event failed: ${error.message}`);
 
-      // For not-found / not-authorized / invalid-state, the form itself
-      // shouldn't be re-rendered — the user has no useful action from here.
-      // Show a plain error page instead.
       if (
         error.name === "EventNotFound" ||
         error.name === "EventNotAuthorized" ||
@@ -348,18 +594,32 @@ class EventController implements IEventController {
         res.status(status).render("partials/error", {
           message: error.message,
           session: touchAppSession(store),
+          layout: isHtmx ? false : undefined,
         });
         return;
       }
 
-      // For ValidationError, re-render the form with the user's input
-      // so they can fix it without retyping everything.
+      if (isHtmx) {
+        res.status(status).render("partials/error", {
+          message: error.message,
+          layout: false,
+        });
+        return;
+      }
+
       res.status(status);
       await this.showEditForm(res, eventId, store, input, error.message);
       return;
     }
 
     this.logger.info(`Updated event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx) {
+      res.set("HX-Redirect", `/events/${result.value.id}`);
+      res.status(200).send("");
+      return;
+    }
+
     res.redirect(`/events/${result.value.id}`);
   }
 }
@@ -368,6 +628,7 @@ export function CreateEventController(
   service: IEventService,
   logger: ILoggingService,
   rsvpController?: IRsvpController,
+  savedService?: ISavedService,
 ): IEventController {
-  return new EventController(service, logger, rsvpController);
+  return new EventController(service, logger, rsvpController, savedService);
 }
