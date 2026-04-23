@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { Ok, Err, type Result } from "../lib/result";
 import {
+  ValidationError,
   MissingRequiredField,
   FieldTooShort,
   FieldTooLong,
@@ -176,6 +177,34 @@ function validateSearchQuery(query: string): EventError | null {
   return null;
 }
 
+function validateFilterCategory(category: string): EventError | null {
+  const trimmed = category.trim().toLowerCase();
+  if (!trimmed) {
+    return null;
+  }
+
+  const allowedCategories = ["social", "educational", "volunteer", "sports", "arts"];
+  if (!allowedCategories.includes(trimmed)) {
+    return ValidationError("Invalid category filter.", "category");
+  }
+
+  return null;
+}
+
+function validateFilterTimeframe(timeframe: string): EventError | null {
+  const trimmed = timeframe.trim().toLowerCase();
+  if (!trimmed) {
+    return null;
+  }
+
+  const allowedTimeframes = ["this-week", "this-weekend"];
+  if (!allowedTimeframes.includes(trimmed)) {
+    return ValidationError("Invalid timeframe filter.", "timeframe");
+  }
+
+  return null;
+}
+
 function parseAndValidateDate(raw: string, fieldName: string): Result<Date, EventError> {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -318,6 +347,12 @@ class EventService implements IEventService {
     const queryErr = validateSearchQuery(query);
     if (queryErr) return Err(queryErr);
 
+    const categoryErr = validateFilterCategory(category ?? "");
+    if (categoryErr) return Err(categoryErr);
+
+    const timeframeErr = validateFilterTimeframe(timeframe ?? "");
+    if (timeframeErr) return Err(timeframeErr);
+
     const allResult = await this.repo.findAll();
     if (allResult.ok === false) return Err(allResult.value);
 
@@ -344,7 +379,13 @@ class EventService implements IEventService {
     sunday.setHours(23, 59, 59, 999);
 
     const visibleEvents = allResult.value.filter((event) => {
-      if (event.status !== "published") {
+      if (event.status === "draft") {
+        const isOwner = currentUser?.userId === event.organizerId;
+        const isAdmin = currentUser?.role === "admin";
+        if (!isOwner && !isAdmin) {
+          return false;
+        }
+      } else if (event.status !== "published") {
         return false;
       }
 
@@ -376,7 +417,6 @@ class EventService implements IEventService {
         if (eventStart < saturday || eventStart > sunday) {
           return false;
         }
-      } else {
       }
 
       return true;

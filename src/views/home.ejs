@@ -80,5 +80,5 @@
 </form>
 
 <div id="event-list">
-  <%- include("event/partials/event-list", { events, user }) %>
+  <%- include("event/partials/event-list", { events, user, savedEventIds: typeof savedEventIds !== 'undefined' ? savedEventIds : new Set() }) %>
 </div>
