@@ -44,7 +44,12 @@
 
               <div>
                 <span class="block text-xs text-slate-500 font-medium mb-1">Category</span>
-                <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-sm font-medium"><%= event.category %></span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-sm font-medium capitalize"><%= event.category %></span>
+              </div>
+
+              <div>
+                <span class="block text-xs text-slate-500 font-medium mb-1">Capacity</span>
+                <span class="text-slate-900 font-semibold"><%= event.capacity > 0 ? event.capacity + ' spots total' : 'Unlimited seating' %></span>
               </div>
             </div>
           </div>

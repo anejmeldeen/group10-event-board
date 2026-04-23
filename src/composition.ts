@@ -1,3 +1,5 @@
+import { PrismaClient } from "@prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { CreateAdminUserService } from "./auth/AdminUserService";
 import { CreateAuthController } from "./auth/AuthController";
 import { CreateAuthService } from "./auth/AuthService";
@@ -9,7 +11,7 @@ import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
 
 // Event
-import { CreateInMemoryEventRepository } from "./event/InMemoryEventRepository";
+import { CreatePrismaEventRepository } from "./event/PrismaEventRepository";
 import { CreateEventService } from "./event/EventService";
 import { CreateEventController } from "./event/EventController";
 
@@ -26,13 +28,18 @@ import { CreateSavedController } from "./saved/SavedController";
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
 
+  const adapter = new PrismaBetterSqlite3({
+    url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
+  });
+  const prisma = new PrismaClient({ adapter });
+
   const authUsers = CreateInMemoryUserRepository();
   const passwordHasher = CreatePasswordHasher();
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  const eventRepository = CreateInMemoryEventRepository();
+  const eventRepository = CreatePrismaEventRepository(prisma);
   const rsvpRepository = CreateInMemoryRsvpRepository();
   const savedRepository = CreateInMemorySavedRepository();
 
