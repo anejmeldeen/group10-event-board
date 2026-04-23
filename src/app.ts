@@ -359,6 +359,14 @@ this.app.get(
     );
 
     this.app.post(
+      "/events/:id/rsvp/cancel",
+      asyncHandler(async (req, res) => {
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        await this.rsvpController.cancelRsvpFromDashboard(res, eventId, sessionStore(req));
+      }),
+    );
+
+    this.app.post(
       "/events/:id/edit",
       asyncHandler(async (req, res) => {
         if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can edit events.")) {

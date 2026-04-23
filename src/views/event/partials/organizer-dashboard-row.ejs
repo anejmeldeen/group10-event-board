@@ -1,0 +1,28 @@
+<div id="event-row-<%= item.id %>" class="event-card">
+    <h3><%= item.title %></h3>
+    <p>Category: <%= item.category %></p>
+    <p>Start: <%= item.startDate %></p>
+    <p>End: <%= item.endDate %></p>
+    <p>Status: <%= item.status %></p>
+    <p>Attending: <%= item.attendeeCount %> / <%= item.capacity %></p>
+
+    <a href="/events/<%= item.id %>">View details</a>
+
+    <% if (item.status === "draft") { %>
+    <button
+        hx-post="/events/<%= item.id %>/publish"
+        hx-target="#event-row-<%= item.id %>"
+        hx-swap="outerHTML">
+        Publish
+    </button>
+<% } %>
+
+<% if (item.status === "published") { %>
+    <button
+        hx-post="/events/<%= item.id %>/cancel"
+        hx-target="#event-row-<%= item.id %>"
+        hx-swap="outerHTML">
+        Cancel
+    </button>
+<% } %>
+</div>
