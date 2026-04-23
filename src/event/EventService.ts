@@ -471,12 +471,8 @@ class EventService implements IEventService {
     const event = eventResult.value;
     if (!event) return Err(EventNotFound("Event not found."));
 
-    if (!currentUser) {
-    return Err(EventNotAuthorized("You must be signed in to cancel an event."));
-    }
-
-    const isOwner = currentUser.userId === event.organizerId;
-    const isAdmin = currentUser.role === "admin";
+    const isOwner = currentUser?.userId === event.organizerId;
+    const isAdmin = currentUser?.role === "admin";
 
     if (!isOwner && !isAdmin) {
       return Err(EventNotAuthorized("You do not have permission to cancel this event."));
