@@ -6,14 +6,19 @@ datasource db {
   provider = "sqlite"
 }
 
-// TODO: Define your project's data models here.
-// Example:
-//
-// model Item {
-//   id        Int      @id @default(autoincrement())
-//   title     String
-//   body      String
-//   status    String   @default("active")
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+model Event {
+  id            String   @id
+  title         String
+  description   String
+  location      String
+  category      String
+  startDate     String   // ISO 8601 datetime string
+  endDate       String   // ISO 8601 datetime string
+  organizerId   String
+  organizerName String
+  status        String   @default("draft")
+  capacity      Int      @default(0)
+  attendeeCount Int      @default(0)
+  createdAt     String   // ISO 8601 datetime string
+  updatedAt     String   // ISO 8601 datetime string
+}
