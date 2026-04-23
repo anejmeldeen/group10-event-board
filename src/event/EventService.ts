@@ -390,38 +390,36 @@ class EventService implements IEventService {
   }
 
   async publishEvent(
-    eventId: string,
-    currentUser: IAuthenticatedUserSession | null,
-  ): Promise<Result<IEventSummary, EventError>> {
-    const eventResult = await this.repo.findById(eventId);
-    if (eventResult.ok === false) return Err(eventResult.value);
+  eventId: string,
+  currentUser: IAuthenticatedUserSession | null,
+): Promise<Result<IEventSummary, EventError>> {
+  const eventResult = await this.repo.findById(eventId);
+  if (eventResult.ok === false) return Err(eventResult.value);
 
-    const event = eventResult.value;
-    if (!event) return Err(EventNotFound("Event not found."));
+  const event = eventResult.value;
+  if (!event) return Err(EventNotFound("Event not found."));
 
-    if (!currentUser) {
-      return Err(EventNotAuthorized("You must be signed in to publish an event."));
-    }
+  // Auth check first — before any state checks
+  const isOwner = currentUser?.userId === event.organizerId;
+  const isAdmin = currentUser?.role === "admin";
 
-    const isOwner = currentUser?.userId === event.organizerId;
-    const isAdmin = currentUser?.role === "admin";
-
-    if (!isOwner && !isAdmin) {
-      return Err(EventNotAuthorized("You do not have permission to publish this event."));
-    }
-
-    if (event.status !== "draft") {
-      return Err(EventInvalidState("Only draft events can be published."));
-    }
-
-    event.status = "published";
-    event.updatedAt = new Date().toISOString();
-
-    const updateResult = await this.repo.update(event);
-    if (updateResult.ok === false) return Err(updateResult.value);
-
-    return Ok(toEventSummary(updateResult.value));
+  if (!isOwner && !isAdmin) {
+    return Err(EventNotAuthorized("You do not have permission to publish this event."));
   }
+
+  // State check after auth
+  if (event.status !== "draft") {
+    return Err(EventInvalidState("Only draft events can be published."));
+  }
+
+  event.status = "published";
+  event.updatedAt = new Date().toISOString();
+
+  const updateResult = await this.repo.update(event);
+  if (updateResult.ok === false) return Err(updateResult.value);
+
+  return Ok(toEventSummary(updateResult.value));
+}
 
   async cancelEvent(
     eventId: string,
