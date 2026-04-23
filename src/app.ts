@@ -374,6 +374,7 @@ this.app.get(
         }
 
         const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        const isHtmx = this.isHtmxRequest(req);
 
         await this.eventController.updateEventFromForm(
           res,
@@ -388,6 +389,7 @@ this.app.get(
             capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
           },
           sessionStore(req),
+          isHtmx,
         );
       }),
     );
