@@ -7,7 +7,8 @@ const adapter = new PrismaBetterSqlite3({
 const prisma = new PrismaClient({ adapter });
 
 beforeAll(async () => {
-  // Clear the database before each test suite runs to prevent tests from failing
+  // Delete RSVPs first because they have a foreign key to events
+  await prisma.rsvp.deleteMany();
   await prisma.event.deleteMany();
 });
 
