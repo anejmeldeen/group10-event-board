@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from ".prisma/client/default";
 import { Ok, Err, type Result } from "../lib/result";
 import { UnexpectedDependencyError, type EventError } from "./errors";
 import type { IEventRepository } from "./EventRepository";
