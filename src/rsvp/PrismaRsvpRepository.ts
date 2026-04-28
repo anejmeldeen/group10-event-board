@@ -1,62 +1,95 @@
-import type { PrismaClient } from ".prisma/client/default";
+import { PrismaClient } from "@prisma/client";
 import { Ok, Err, type Result } from "../lib/result";
 import { RsvpRepositoryError, type RsvpError } from "./errors";
 import type { IRsvpRepository } from "./RsvpRepository";
-import type { IRsvpRecord } from "./Rsvp";
+import type { IRsvpRecord, RsvpStatus } from "./Rsvp";
+
+function toRsvpRecord(row: {
+  id: string;
+  eventId: string;
+  userId: string;
+  status: string;
+  createdAt: string;
+}): IRsvpRecord {
+  return {
+    id: row.id,
+    eventId: row.eventId,
+    userId: row.userId,
+    status: row.status as RsvpStatus,
+    createdAt: row.createdAt,
+  };
+}
 
 class PrismaRsvpRepository implements IRsvpRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findByEventAndUser(eventId: string, userId: string): Promise<Result<IRsvpRecord | null, RsvpError>> {
     try {
-      const rsvp = await this.prisma.rsvp.findUnique({
+      const row = await this.prisma.rsvp.findUnique({
         where: { eventId_userId: { eventId, userId } },
       });
-      return Ok(rsvp as IRsvpRecord | null);
-    } catch (e) {
-      return Err(RsvpRepositoryError(`Failed to find RSVP: ${e}`));
+      return Ok(row ? toRsvpRecord(row) : null);
+    } catch (error) {
+      return Err(RsvpRepositoryError("Failed to find RSVP."));
     }
   }
 
   async upsert(rsvp: IRsvpRecord): Promise<Result<IRsvpRecord, RsvpError>> {
     try {
-      const saved = await this.prisma.rsvp.upsert({
+      const row = await this.prisma.rsvp.upsert({
         where: { eventId_userId: { eventId: rsvp.eventId, userId: rsvp.userId } },
-        create: rsvp,
-        update: { status: rsvp.status },
+        create: {
+          id: rsvp.id,
+          eventId: rsvp.eventId,
+          userId: rsvp.userId,
+          status: rsvp.status,
+          createdAt: rsvp.createdAt,
+        },
+        update: {
+          status: rsvp.status,
+        },
       });
-      return Ok(saved as IRsvpRecord);
-    } catch (e) {
-      return Err(RsvpRepositoryError(`Failed to save RSVP: ${e}`));
+      return Ok(toRsvpRecord(row));
+    } catch (error) {
+      return Err(RsvpRepositoryError("Failed to save RSVP."));
     }
   }
 
   async countGoing(eventId: string): Promise<Result<number, RsvpError>> {
     try {
       const count = await this.prisma.rsvp.count({
-        where: { eventId, status: "going" },
+        where: {
+          eventId,
+          status: "going",
+        },
       });
       return Ok(count);
-    } catch (e) {
-      return Err(RsvpRepositoryError(`Failed to count RSVPs: ${e}`));
+    } catch (error) {
+      return Err(RsvpRepositoryError("Failed to count RSVPs."));
     }
   }
 
   async listByUser(userId: string): Promise<Result<IRsvpRecord[], RsvpError>> {
     try {
-      const rsvps = await this.prisma.rsvp.findMany({ where: { userId } });
-      return Ok(rsvps as IRsvpRecord[]);
-    } catch (e) {
-      return Err(RsvpRepositoryError(`Failed to list RSVPs for user: ${e}`));
+      const rows = await this.prisma.rsvp.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+      });
+      return Ok(rows.map(toRsvpRecord));
+    } catch (error) {
+      return Err(RsvpRepositoryError("Failed to list RSVPs for user."));
     }
   }
 
   async listByEvent(eventId: string): Promise<Result<IRsvpRecord[], RsvpError>> {
     try {
-      const rsvps = await this.prisma.rsvp.findMany({ where: { eventId } });
-      return Ok(rsvps as IRsvpRecord[]);
-    } catch (e) {
-      return Err(RsvpRepositoryError(`Failed to list RSVPs for event: ${e}`));
+      const rows = await this.prisma.rsvp.findMany({
+        where: { eventId },
+        orderBy: { createdAt: 'asc' },
+      });
+      return Ok(rows.map(toRsvpRecord));
+    } catch (error) {
+      return Err(RsvpRepositoryError("Failed to list RSVPs for event."));
     }
   }
 }
