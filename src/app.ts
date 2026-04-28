@@ -229,19 +229,29 @@ class ExpressApp implements IApp {
       }),
     );
 
-    this.app.get(
-      "/home",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
+this.app.get(
+  "/home",
+  asyncHandler(async (req, res) => {
+    if (!this.requireAuthenticated(req, res)) {
+      return;
+    }
 
-        const browserSession = recordPageView(sessionStore(req));
-        const query = typeof req.query.q === "string" ? req.query.q : "";
-        this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        await this.eventController.showDashboard(res, sessionStore(req), query);
-      }),
+    const browserSession = recordPageView(sessionStore(req));
+    const query = typeof req.query.q === "string" ? req.query.q : "";
+    const category = typeof req.query.category === "string" ? req.query.category : "";
+    const timeframe = typeof req.query.timeframe === "string" ? req.query.timeframe : "";
+    const isHtmx = req.get("HX-Request") === "true";
+    this.logger.info(`GET /home for ${browserSession.browserLabel}`);
+    await this.eventController.showDashboard(
+      res,
+      sessionStore(req),
+      query,
+      category,
+      timeframe,
+      isHtmx,
     );
+  }),
+);
 
     this.app.get(
       "/saved",
@@ -266,12 +276,19 @@ class ExpressApp implements IApp {
           typeof req.body.returnTo === "string" && req.body.returnTo.trim()
             ? req.body.returnTo
             : "/saved";
+        const context =
+          typeof req.body.context === "string" && req.body.context.trim()
+            ? req.body.context
+            : "saved";
+        const isHtmx = this.isHtmxRequest(req);
 
         await this.savedController.toggleSavedEvent(
           res,
           eventId,
           sessionStore(req),
           returnTo,
+          context,
+          isHtmx,
         );
       }),
     );
@@ -288,7 +305,7 @@ class ExpressApp implements IApp {
     );
 
     this.app.get("/events/manage", (req, res) =>
-      this.eventController.getOrganizerDashboard(res, req.session)
+      this.eventController.getOrganizerDashboard(res, req.session as AppSessionStore)
     );
 
     this.app.get(
@@ -342,6 +359,14 @@ class ExpressApp implements IApp {
     );
 
     this.app.post(
+      "/events/:id/rsvp/cancel",
+      asyncHandler(async (req, res) => {
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        await this.rsvpController.cancelRsvpFromDashboard(res, eventId, sessionStore(req));
+      }),
+    );
+
+    this.app.post(
       "/events/:id/edit",
       asyncHandler(async (req, res) => {
         if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can edit events.")) {
@@ -349,6 +374,7 @@ class ExpressApp implements IApp {
         }
 
         const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        const isHtmx = this.isHtmxRequest(req);
 
         await this.eventController.updateEventFromForm(
           res,
@@ -363,6 +389,7 @@ class ExpressApp implements IApp {
             capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
           },
           sessionStore(req),
+          isHtmx,
         );
       }),
     );
@@ -375,7 +402,21 @@ class ExpressApp implements IApp {
         }
 
         const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        await this.eventController.publishEvent(res, eventId, sessionStore(req));
+        const isHtmx = this.isHtmxRequest(req);
+        await this.eventController.publishEvent(res, eventId, sessionStore(req), isHtmx);
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/cancel",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can cancel events.")) {
+          return;
+        }
+
+        const eventId = typeof req.params.id === "string" ? req.params.id : "";
+        const isHtmx = this.isHtmxRequest(req);
+        await this.eventController.cancelEvent(res, eventId, sessionStore(req), isHtmx);
       }),
     );
 

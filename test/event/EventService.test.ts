@@ -5,9 +5,12 @@ import type { IEventRepository } from "../../src/event/EventRepository";
 import type { IAuthenticatedUserSession } from "../../src/session/AppSession";
 
 // Helper to create a test event directly in the repo
-async function seedPublishedEvent(repo: IEventRepository, overrides: Partial<import("../../src/event/Event").IEventRecord> = {}) {
+async function seedPublishedEvent(
+  repo: IEventRepository,
+  overrides: Partial<import("../../src/event/Event").IEventRecord> = {},
+) {
   const now = new Date().toISOString();
-  const future = new Date(Date.now() + 86400000).toISOString(); // tomorrow
+  const future = new Date(Date.now() + 86400000).toISOString();
   const event = {
     id: "evt-test-1",
     title: "Test Event",
@@ -17,7 +20,7 @@ async function seedPublishedEvent(repo: IEventRepository, overrides: Partial<imp
     status: "published" as const,
     capacity: 30,
     startDate: future,
-    endDate: new Date(Date.now() + 90000000).toISOString(), // day after tomorrow-ish
+    endDate: new Date(Date.now() + 90000000).toISOString(),
     organizerId: "user-staff",
     organizerName: "Sam Staff",
     attendeeCount: 0,
@@ -29,7 +32,9 @@ async function seedPublishedEvent(repo: IEventRepository, overrides: Partial<imp
   return event;
 }
 
-function staffUser(overrides: Partial<IAuthenticatedUserSession> = {}): IAuthenticatedUserSession {
+function staffUser(
+  overrides: Partial<IAuthenticatedUserSession> = {},
+): IAuthenticatedUserSession {
   return {
     userId: "user-staff",
     email: "staff@app.test",
@@ -80,10 +85,9 @@ describe("EventService.updateEvent", () => {
 
   beforeEach(() => {
     repo = CreateInMemoryEventRepository();
-    service = CreateEventService(repo, CreateInMemoryRsvpRepository());
+    const rsvpRepo = CreateInMemoryRsvpRepository();
+    service = CreateEventService(repo, rsvpRepo);
   });
-
-  // ── Happy path ──────────────────────────────────────────────────
 
   it("allows the organizer to edit their own published event", async () => {
     await seedPublishedEvent(repo);
@@ -113,8 +117,6 @@ describe("EventService.updateEvent", () => {
     expect(result.ok).toBe(true);
   });
 
-  // ── EventNotFound ───────────────────────────────────────────────
-
   it("returns EventNotFound for a nonexistent event", async () => {
     const result = await service.updateEvent("does-not-exist", validInput(), staffUser());
 
@@ -123,8 +125,6 @@ describe("EventService.updateEvent", () => {
       expect(result.value.name).toBe("EventNotFound");
     }
   });
-
-  // ── EventNotAuthorized ──────────────────────────────────────────
 
   it("rejects a staff user editing an event they do not own", async () => {
     await seedPublishedEvent(repo, { organizerId: "someone-else" });
@@ -146,8 +146,6 @@ describe("EventService.updateEvent", () => {
     }
   });
 
-  // ── EventInvalidState ──────────────────────────────────────────
-
   it("rejects editing a cancelled event", async () => {
     await seedPublishedEvent(repo, { status: "cancelled" });
     const result = await service.updateEvent("evt-test-1", validInput(), staffUser());
@@ -158,8 +156,6 @@ describe("EventService.updateEvent", () => {
     }
   });
 
-  // ── ValidationError ─────────────────────────────────────────────
-
   it("rejects an empty title", async () => {
     await seedPublishedEvent(repo);
     const input = { ...validInput(), title: "" };
@@ -168,6 +164,7 @@ describe("EventService.updateEvent", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.value.name).toBe("MissingRequiredField");
+      expect(result.value.message).toContain("Title");
     }
   });
 
@@ -190,6 +187,7 @@ describe("EventService.updateEvent", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.value.name).toBe("MissingRequiredField");
+      expect(result.value.message).toContain("Description");
     }
   });
 
@@ -205,6 +203,7 @@ describe("EventService.updateEvent", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.value.name).toBe("EndBeforeStart");
+      expect(result.value.message).toContain("End date");
     }
   });
 

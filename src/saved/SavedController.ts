@@ -19,6 +19,8 @@ export interface ISavedController {
     eventId: string,
     store: AppSessionStore,
     returnTo?: string,
+    context?: string,
+    isHtmx?: boolean,
   ): Promise<void>;
 }
 
@@ -79,11 +81,21 @@ class SavedController implements ISavedController {
     eventId: string,
     store: AppSessionStore,
     returnTo: string = "/saved",
+    context: string = "saved",
+    isHtmx: boolean = false,
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
     if (!currentUser) {
+      if (isHtmx) {
+        res.status(401).render("partials/error", {
+          message: "Please log in to continue.",
+          layout: false,
+        });
+        return;
+      }
+
       res.redirect("/login");
       return;
     }
@@ -96,6 +108,14 @@ class SavedController implements ISavedController {
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Save toggle failed: ${error.message}`);
 
+      if (isHtmx) {
+        res.status(status).render("partials/error", {
+          message: error.message,
+          layout: false,
+        });
+        return;
+      }
+
       res.status(status).render("partials/error", {
         message: error.message,
         session,
@@ -104,6 +124,38 @@ class SavedController implements ISavedController {
     }
 
     this.logger.info(`Save toggled for event ${eventId}: ${result.value.saved}`);
+
+    if (isHtmx) {
+      if (context === "saved") {
+        const savedEvents = await this.service.getSavedEvents(currentUser);
+
+        if (savedEvents.ok === false) {
+          res.status(this.mapErrorStatus(savedEvents.value)).render("partials/error", {
+            message: savedEvents.value.message,
+            layout: false,
+          });
+          return;
+        }
+
+        res.render("partials/saved-list-content", {
+          events: savedEvents.value,
+          user: currentUser,
+          layout: false,
+        });
+        return;
+      }
+
+      res.render("partials/saved-toggle-button", {
+        eventId,
+        saved: result.value.saved,
+        returnTo,
+        context,
+        htmx: true,
+        layout: false,
+      });
+      return;
+    }
+
     res.redirect(returnTo || "/saved");
   }
 }

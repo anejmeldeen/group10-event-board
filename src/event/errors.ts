@@ -4,11 +4,14 @@
  *
  * Each named error captures a distinct way that an event operation can fail.
  *
- * Sprint 2 — every creation-failure path has a dedicated name so integration
- * tests can assert on error.name without inspecting message strings.
- * (Everything implemented here is compliant with Sprint 2).
+ * Sprint 2 coverage for Feature 8 relies especially on:
+ * - EventNotFound
+ * - EventNotAuthorized
+ * - EventInvalidState
+ *
+ * These support organizer dashboard actions such as publish/cancel and
+ * allow integration tests to assert on stable error names.
  */
-
 export type EventError =
   | { name: "ValidationError"; message: string; field?: string }
   | { name: "EventNotFound"; message: string }

@@ -1,0 +1,53 @@
+<div id="event-lifecycle-controls" class="flex flex-col gap-3">
+  <% if (event.status === 'draft') { %>
+    <span class="inline-block px-3 py-1 text-xs font-bold tracking-wider text-amber-900 bg-amber-400 rounded-full uppercase w-fit">
+      Draft
+    </span>
+  <% } else if (event.status === 'cancelled') { %>
+    <span class="inline-block px-3 py-1 text-xs font-bold tracking-wider text-rose-900 bg-rose-400 rounded-full uppercase w-fit">
+      Cancelled
+    </span>
+  <% } else { %>
+    <span class="inline-block px-3 py-1 text-xs font-bold tracking-wider text-emerald-900 bg-emerald-400 rounded-full uppercase w-fit">
+      Published
+    </span>
+  <% } %>
+
+  <% if (user.role === 'admin' || user.role === 'staff') { %>
+    <% if (event.status === 'draft') { %>
+      <form
+        method="POST"
+        action="/events/<%= event.id %>/publish"
+        hx-post="/events/<%= event.id %>/publish"
+        hx-target="#event-lifecycle-controls"
+        hx-swap="outerHTML"
+        class="w-full"
+      >
+        <button type="submit" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg cursor-pointer">
+          Publish Event
+        </button>
+      </form>
+    <% } %>
+
+    <% if ((user.userId === event.organizerId || user.role === 'admin') && event.status !== 'cancelled') { %>
+      <a href="/events/<%= event.id %>/edit" class="block w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg border border-slate-300 transition-colors text-center no-underline">
+        Edit Event
+      </a>
+    <% } %>
+
+    <% if (event.status === 'published') { %>
+      <form
+        method="POST"
+        action="/events/<%= event.id %>/cancel"
+        hx-post="/events/<%= event.id %>/cancel"
+        hx-target="#event-lifecycle-controls"
+        hx-swap="outerHTML"
+        class="w-full"
+      >
+        <button type="submit" class="w-full py-2.5 px-4 bg-white hover:bg-rose-50 text-rose-600 font-semibold rounded-lg border border-rose-200 transition-colors cursor-pointer">
+          Cancel Event
+        </button>
+      </form>
+    <% } %>
+  <% } %>
+</div>

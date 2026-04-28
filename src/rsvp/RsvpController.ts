@@ -28,6 +28,12 @@ export interface IRsvpController {
     res: Response,
     store: AppSessionStore,
   ): Promise<void>;
+
+  cancelRsvpFromDashboard(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+  ): Promise<void>;
 }
 
 class RsvpController implements IRsvpController {
@@ -43,7 +49,7 @@ class RsvpController implements IRsvpController {
     return 500;
   }
 
- async toggleRsvp(
+  async toggleRsvp(
     res: Response,
     eventId: string,
     store: AppSessionStore,
@@ -119,38 +125,88 @@ class RsvpController implements IRsvpController {
   }
 
   async getMyRsvpDashboard(
-  res: Response,
-  store: AppSessionStore,
-): Promise<void> {
-  const session = touchAppSession(store);
-  const currentUser = getAuthenticatedUser(store);
+    res: Response,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const session = touchAppSession(store);
+    const currentUser = getAuthenticatedUser(store);
 
-  if (!currentUser) {
-    res.redirect("/login");
-    return;
-  }
+    if (!currentUser) {
+      res.redirect("/login");
+      return;
+    }
 
-  const result = await this.service.getMyRsvpDashboard(currentUser);
+    const result = await this.service.getMyRsvpDashboard(currentUser);
 
-  if (result.ok === false) {
-    const error = result.value;
-    const status = this.mapErrorStatus(error);
-    const log = status >= 500 ? this.logger.error : this.logger.warn;
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `RSVP dashboard failed: ${error.message}`);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session,
+      });
+      return;
+    }
 
-    log.call(this.logger, `RSVP dashboard failed: ${error.message}`);
-
-    res.status(status).render("partials/error", {
-      message: error.message,
+    res.render("rsvp/dashboard", {
+      upcoming: result.value.upcoming,
+      history: result.value.history,
       session,
     });
-    return;
   }
 
-  res.render("rsvp/dashboard", {
-    upcoming: result.value.upcoming,
-    history: result.value.history,
-    session,
-  });
+  async cancelRsvpFromDashboard(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+  ): Promise<void> {
+    const session = touchAppSession(store);
+    const currentUser = getAuthenticatedUser(store);
+
+    if (!currentUser) {
+      res.redirect("/login");
+      return;
+    }
+
+    const result = await this.service.toggleRsvp(eventId, currentUser);
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `RSVP cancel failed: ${error.message}`);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session,
+        layout: false,
+      });
+      return;
+    }
+
+    const dashboardResult = await this.service.getMyRsvpDashboard(currentUser);
+    if (dashboardResult.ok === false) {
+      res.status(500).render("partials/error", {
+        message: dashboardResult.value.message,
+        session,
+        layout: false,
+      });
+      return;
+    }
+
+    const allItems = [
+      ...dashboardResult.value.upcoming,
+      ...dashboardResult.value.history,
+    ];
+    const item = allItems.find((entry) => entry.eventId === eventId);
+
+    if (!item) {
+      res.status(200).send("");
+      return;
+    }
+
+    res.render("rsvp/dashboard-row", { item, layout: false });
   }
 }
 

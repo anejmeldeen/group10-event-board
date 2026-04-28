@@ -9,6 +9,7 @@ import {
 import type { ILoggingService } from "../service/LoggingService";
 import type { EventError } from "./errors";
 import type { IRsvpController } from "../rsvp/RsvpController";
+import type { ISavedService } from "../saved/SavedService";
 
 export interface IEventController {
   showCreateForm(
@@ -28,12 +29,23 @@ export interface IEventController {
     res: Response,
     store: AppSessionStore,
     query: string,
+    category?: string,
+    timeframe?: string,
+    isHtmx?: boolean,
   ): Promise<void>;
 
   publishEvent(
     res: Response,
     eventId: string,
     store: AppSessionStore,
+    isHtmx: boolean,
+  ): Promise<void>;
+
+  cancelEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+    isHtmx: boolean,
   ): Promise<void>;
 
   createEventFromForm(
@@ -56,6 +68,7 @@ export interface IEventController {
     eventId: string,
     input: UpdateEventInput,
     store: AppSessionStore,
+    isHtmx?: boolean,
   ): Promise<void>;
 
   getOrganizerDashboard(
@@ -69,6 +82,7 @@ class EventController implements IEventController {
     private readonly service: IEventService,
     private readonly logger: ILoggingService,
     private readonly rsvpController?: IRsvpController,
+    private readonly savedService?: ISavedService,
   ) {}
 
   private mapErrorStatus(error: EventError): number {
@@ -142,11 +156,20 @@ class EventController implements IEventController {
       );
     }
 
+    let isSaved = false;
+    if (this.savedService && currentUser && currentUser.role === "user") {
+      const savedIdsResult = await this.savedService.getSavedEventIds(currentUser);
+      if (savedIdsResult.ok) {
+        isSaved = savedIdsResult.value.has(eventId);
+      }
+    }
+
     res.render("event/detail", {
       session,
       event,
       user: currentUser,
       rsvpView,
+      isSaved,
     });
   }
 
@@ -191,19 +214,52 @@ class EventController implements IEventController {
     res: Response,
     store: AppSessionStore,
     query: string,
+    category: string = "",
+    timeframe: string = "",
+    isHtmx: boolean = false,
   ): Promise<void> {
     const session = touchAppSession(store);
     const currentUser = getAuthenticatedUser(store);
 
-    const result = await this.service.listVisibleEvents(currentUser, query);
+    const result = await this.service.listVisibleEvents(currentUser, query, category, timeframe);
 
     if (result.ok === false) {
-      res.render("home", {
+      const status = this.mapErrorStatus(result.value);
+
+      if (isHtmx) {
+        res.status(status).render("partials/error", {
+          message: result.value.message,
+          layout: false,
+        });
+        return;
+      }
+
+      res.status(status).render("home", {
         session,
         events: [],
         user: currentUser,
-        pageError: "Unable to load events.",
+        pageError: result.value.message,
         searchQuery: query,
+        selectedCategory: category,
+        selectedTimeframe: timeframe,
+      });
+      return;
+    }
+
+    let savedEventIds = new Set<string>();
+    if (this.savedService && currentUser && currentUser.role === "user") {
+      const savedIdsResult = await this.savedService.getSavedEventIds(currentUser);
+      if (savedIdsResult.ok) {
+        savedEventIds = savedIdsResult.value;
+      }
+    }
+
+    if (isHtmx) {
+      res.render("event/partials/event-list", {
+        events: result.value,
+        user: currentUser,
+        savedEventIds,
+        layout: false,
       });
       return;
     }
@@ -214,6 +270,9 @@ class EventController implements IEventController {
       user: currentUser,
       pageError: null,
       searchQuery: query,
+      selectedCategory: category,
+      selectedTimeframe: timeframe,
+      savedEventIds,
     });
   }
 
@@ -221,6 +280,7 @@ class EventController implements IEventController {
     res: Response,
     eventId: string,
     store: AppSessionStore,
+    isHtmx: boolean,
   ): Promise<void> {
     const currentUser = getAuthenticatedUser(store);
     const result = await this.service.publishEvent(eventId, currentUser);
@@ -232,12 +292,158 @@ class EventController implements IEventController {
       res.status(status).render("partials/error", {
         message: error.message,
         session: touchAppSession(store),
+        layout: false,
       });
       return;
     }
 
     this.logger.info(`Published event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx && currentUser) {
+      const hxTarget = res.req?.get?.("HX-Target") ?? "";
+
+      if (hxTarget === "event-lifecycle-controls") {
+        const eventResult = await this.service.getEventDetails(eventId, currentUser);
+        if (eventResult.ok === false) {
+          res.status(this.mapErrorStatus(eventResult.value)).render("partials/error", {
+            message: eventResult.value.message,
+            session: touchAppSession(store),
+            layout: false,
+          });
+          return;
+        }
+        res.render("event/partials/event-status", {
+          event: eventResult.value,
+          user: currentUser,
+          layout: false,
+        });
+        return;
+      }
+
+      const dashboardResult = await this.service.getOrganizerDashboard(currentUser);
+
+      if (dashboardResult.ok === false) {
+        const error = dashboardResult.value;
+        const status = this.mapErrorStatus(error);
+        res.status(status).render("partials/error", {
+          message: error.message,
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      const allItems = [
+        ...dashboardResult.value.draft,
+        ...dashboardResult.value.published,
+        ...dashboardResult.value.cancelledOrPast,
+      ];
+
+      const item = allItems.find((entry) => entry.id === result.value.id);
+
+      if (!item) {
+        res.status(404).render("partials/error", {
+          message: "Updated dashboard row could not be found.",
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      res.render("event/partials/organizer-dashboard-row", {
+        item,
+        user: currentUser,
+        layout: false,
+      });
+      return;
+    }
+
     res.redirect("/home");
+  }
+
+  async cancelEvent(
+    res: Response,
+    eventId: string,
+    store: AppSessionStore,
+    isHtmx: boolean,
+  ): Promise<void> {
+    const currentUser = getAuthenticatedUser(store);
+    const result = await this.service.cancelEvent(eventId, currentUser);
+
+    if (result.ok === false) {
+      const error = result.value;
+      const status = this.mapErrorStatus(error);
+      this.logger.error(`Cancel event failed: ${error.message}`);
+      res.status(status).render("partials/error", {
+        message: error.message,
+        session: touchAppSession(store),
+        layout: false,
+      });
+      return;
+    }
+
+    this.logger.info(`Cancelled event ${result.value.id} "${result.value.title}"`);
+
+    if (isHtmx && currentUser) {
+      const hxTarget = res.req?.get?.("HX-Target") ?? "";
+
+      if (hxTarget === "event-lifecycle-controls") {
+        const eventResult = await this.service.getEventDetails(eventId, currentUser);
+        if (eventResult.ok === false) {
+          res.status(this.mapErrorStatus(eventResult.value)).render("partials/error", {
+            message: eventResult.value.message,
+            session: touchAppSession(store),
+            layout: false,
+          });
+          return;
+        }
+        res.render("event/partials/event-status", {
+          event: eventResult.value,
+          user: currentUser,
+          layout: false,
+        });
+        return;
+      }
+
+      const dashboardResult = await this.service.getOrganizerDashboard(currentUser);
+
+      if (dashboardResult.ok === false) {
+        const error = dashboardResult.value;
+        const status = this.mapErrorStatus(error);
+        res.status(status).render("partials/error", {
+          message: error.message,
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      const allItems = [
+        ...dashboardResult.value.draft,
+        ...dashboardResult.value.published,
+        ...dashboardResult.value.cancelledOrPast,
+      ];
+
+      const item = allItems.find((entry) => entry.id === result.value.id);
+
+      if (!item) {
+        res.status(404).render("partials/error", {
+          message: "Updated dashboard row could not be found.",
+          session: touchAppSession(store),
+          layout: false,
+        });
+        return;
+      }
+
+      res.render("event/partials/organizer-dashboard-row", {
+        item,
+        user: currentUser,
+        layout: false,
+      });
+      return;
+    }
+
+    res.redirect("/events/manage");
   }
 
   async createEventFromForm(
@@ -362,6 +568,7 @@ class EventController implements IEventController {
     eventId: string,
     input: UpdateEventInput,
     store: AppSessionStore,
+    isHtmx: boolean = false,
   ): Promise<void> {
     const currentUser = getAuthenticatedUser(store);
 
@@ -370,8 +577,6 @@ class EventController implements IEventController {
       res.redirect("/login");
       return;
     }
-
-    const isHtmx = res.req?.get?.("HX-Request") === "true";
 
     const result = await this.service.updateEvent(eventId, input, currentUser);
 
@@ -389,12 +594,11 @@ class EventController implements IEventController {
         res.status(status).render("partials/error", {
           message: error.message,
           session: touchAppSession(store),
-          layout: false,
+          layout: isHtmx ? false : undefined,
         });
         return;
       }
 
-      // Validation error — return just the error partial for HTMX
       if (isHtmx) {
         res.status(status).render("partials/error", {
           message: error.message,
@@ -403,7 +607,6 @@ class EventController implements IEventController {
         return;
       }
 
-      // Non-HTMX fallback: re-render the full form
       res.status(status);
       await this.showEditForm(res, eventId, store, input, error.message);
       return;
@@ -411,14 +614,12 @@ class EventController implements IEventController {
 
     this.logger.info(`Updated event ${result.value.id} "${result.value.title}"`);
 
-    // HTMX redirect
     if (isHtmx) {
       res.set("HX-Redirect", `/events/${result.value.id}`);
       res.status(200).send("");
       return;
     }
 
-    // Non-HTMX fallback
     res.redirect(`/events/${result.value.id}`);
   }
 }
@@ -427,6 +628,7 @@ export function CreateEventController(
   service: IEventService,
   logger: ILoggingService,
   rsvpController?: IRsvpController,
+  savedService?: ISavedService,
 ): IEventController {
-  return new EventController(service, logger, rsvpController);
+  return new EventController(service, logger, rsvpController, savedService);
 }

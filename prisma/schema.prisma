@@ -12,8 +12,8 @@ model Event {
   description   String
   location      String
   category      String
-  startDate     String
-  endDate       String
+  startDate     String   // ISO 8601 datetime string
+  endDate       String   // ISO 8601 datetime string
   organizerId   String
   organizerName String
   status        String   @default("draft")
@@ -35,4 +35,7 @@ model Rsvp {
   event     Event  @relation(fields: [eventId], references: [id])
 
   @@unique([eventId, userId])
+}
+  createdAt     String   // ISO 8601 datetime string
+  updatedAt     String   // ISO 8601 datetime string
 }

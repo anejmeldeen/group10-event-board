@@ -14,6 +14,10 @@ export interface ISavedService {
   getSavedEvents(
     currentUser: IAuthenticatedUserSession,
   ): Promise<Result<IEventRecord[], SavedError>>;
+
+  getSavedEventIds(
+    currentUser: IAuthenticatedUserSession,
+  ): Promise<Result<Set<string>, SavedError>>;
 }
 
 class SavedService implements ISavedService {
@@ -125,6 +129,21 @@ class SavedService implements ISavedService {
     );
 
     return Ok(events);
+  }
+
+  async getSavedEventIds(
+    currentUser: IAuthenticatedUserSession,
+  ): Promise<Result<Set<string>, SavedError>> {
+    if (currentUser.role === "admin" || currentUser.role === "staff") {
+      return Ok(new Set<string>());
+    }
+
+    const savedResult = await this.savedRepo.listByUser(currentUser.userId);
+    if (savedResult.ok === false) {
+      return Err(savedResult.value);
+    }
+
+    return Ok(new Set(savedResult.value.map((s) => s.eventId)));
   }
 }
 
