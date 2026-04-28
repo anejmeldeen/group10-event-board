@@ -16,7 +16,7 @@ import { CreateEventService } from "./event/EventService";
 import { CreateEventController } from "./event/EventController";
 
 // RSVP
-import { CreateInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+import { CreatePrismaRsvpRepository } from "./rsvp/PrismaRsvpRepository";
 import { CreateRsvpService } from "./rsvp/RsvpService";
 import { CreateRsvpController } from "./rsvp/RsvpController";
 
@@ -40,7 +40,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
   const eventRepository = CreatePrismaEventRepository(prisma);
-  const rsvpRepository = CreateInMemoryRsvpRepository();
+  const rsvpRepository = CreatePrismaRsvpRepository(prisma);
   const savedRepository = CreateInMemorySavedRepository();
 
   const eventService = CreateEventService(eventRepository, rsvpRepository);
