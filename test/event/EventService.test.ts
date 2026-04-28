@@ -1,5 +1,6 @@
 import { CreateEventService, type IEventService } from "../../src/event/EventService";
 import { CreateInMemoryEventRepository } from "../../src/event/InMemoryEventRepository";
+import { CreateInMemoryRsvpRepository } from "../../src/rsvp/InMemoryRsvpRepository";
 import type { IEventRepository } from "../../src/event/EventRepository";
 import type { IAuthenticatedUserSession } from "../../src/session/AppSession";
 
@@ -79,7 +80,7 @@ describe("EventService.updateEvent", () => {
 
   beforeEach(() => {
     repo = CreateInMemoryEventRepository();
-    service = CreateEventService(repo);
+    service = CreateEventService(repo, CreateInMemoryRsvpRepository());
   });
 
   // ── Happy path ──────────────────────────────────────────────────
@@ -166,8 +167,7 @@ describe("EventService.updateEvent", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.value.name).toBe("ValidationError");
-      expect(result.value.message).toContain("Title");
+      expect(result.value.name).toBe("MissingRequiredField");
     }
   });
 
@@ -178,7 +178,7 @@ describe("EventService.updateEvent", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.value.name).toBe("ValidationError");
+      expect(result.value.name).toBe("FieldTooShort");
     }
   });
 
@@ -189,8 +189,7 @@ describe("EventService.updateEvent", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.value.name).toBe("ValidationError");
-      expect(result.value.message).toContain("Description");
+      expect(result.value.name).toBe("MissingRequiredField");
     }
   });
 
@@ -205,8 +204,7 @@ describe("EventService.updateEvent", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.value.name).toBe("ValidationError");
-      expect(result.value.message).toContain("End date");
+      expect(result.value.name).toBe("EndBeforeStart");
     }
   });
 
@@ -217,7 +215,7 @@ describe("EventService.updateEvent", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.value.name).toBe("ValidationError");
+      expect(result.value.name).toBe("InvalidCapacity");
     }
   });
 });
