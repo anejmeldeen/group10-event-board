@@ -8,6 +8,7 @@ const prisma = new PrismaClient({ adapter });
 
 beforeAll(async () => {
   // Clear the database before each test suite runs to prevent tests from failing
+  await prisma.rsvp.deleteMany();
   await prisma.event.deleteMany();
 });
 
