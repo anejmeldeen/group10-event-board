@@ -36,6 +36,3 @@ model Rsvp {
 
   @@unique([eventId, userId])
 }
-  createdAt     String   // ISO 8601 datetime string
-  updatedAt     String   // ISO 8601 datetime string
-}
