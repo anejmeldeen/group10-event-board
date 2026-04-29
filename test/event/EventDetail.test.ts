@@ -32,7 +32,7 @@ describe("GET /events/:id (Event Detail Page)", () => {
   let draftEventId: string;
   let foreignDraftEventId: string;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     app = buildApp();
 
     // Set up agents
