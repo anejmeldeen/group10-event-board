@@ -21,6 +21,14 @@ export interface IEventRepository {
   /** Return only events created by a specific organizer. */
   findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], EventError>>;
 
+  /** Return published upcoming events matching optional filters. */
+  findPublishedUpcoming(
+    query: string,
+    category: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<Result<IEventRecord[], EventError>>;
+
   /** Update an existing event. */
   update(event: IEventRecord): Promise<Result<IEventRecord, EventError>>;
 }

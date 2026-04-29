@@ -63,6 +63,46 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
+  async findPublishedUpcoming(
+    query: string,
+    category: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const now = new Date();
+      const trimmedQuery = query.trim();
+      const trimmedCategory = category.trim();
+
+      const events = await this.prisma.event.findMany({
+        where: {
+          status: "published",
+          startDate: {
+            gte: startDate ? startDate.toISOString() : now.toISOString(),
+            ...(endDate ? { lte: endDate.toISOString() } : {}),
+          },
+          ...(trimmedCategory ? { category: trimmedCategory } : {}),
+          ...(trimmedQuery
+            ? {
+                OR: [
+                  { title: { contains: trimmedQuery } },
+                  { description: { contains: trimmedQuery } },
+                  { location: { contains: trimmedQuery } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: {
+          startDate: "asc",
+        },
+      });
+
+      return Ok(events.map(toEventRecord));
+    } catch {
+      return Err(UnexpectedDependencyError("Unable to filter events."));
+    }
+  }
+
   async update(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
     try {
       const updated = await this.prisma.event.update({
