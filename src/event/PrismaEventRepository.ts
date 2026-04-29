@@ -46,7 +46,8 @@ class PrismaEventRepository implements IEventRepository {
       return Err(UnexpectedDependencyError(`Unable to list events: ${e?.message ?? String(e)}`));
     }
   }
-
+// Feature 8 Sprint 3: retrieves all events for a specific organizer
+// used by getOrganizerDashboard to group events by status
   async findByOrganizerId(
     organizerId: string
   ): Promise<Result<IEventRecord[], EventError>> {
