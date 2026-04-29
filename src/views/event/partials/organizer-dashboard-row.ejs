@@ -1,28 +1,77 @@
-<div id="event-row-<%= item.id %>" class="event-card">
-    <h3><%= item.title %></h3>
-    <p>Category: <%= item.category %></p>
-    <p>Start: <%= item.startDate %></p>
-    <p>End: <%= item.endDate %></p>
-    <p>Status: <%= item.status %></p>
-    <p>Attending: <%= item.attendeeCount %> / <%= item.capacity %></p>
+<div id="event-row-<%= item.id %>" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between h-full">
+  <!-- Status Badge -->
+  <div class="absolute top-4 right-4">
+    <% if (item.status === 'draft') { %>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+        Draft
+      </span>
+    <% } else if (item.status === 'published') { %>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        Published
+      </span>
+    <% } else if (item.status === 'cancelled') { %>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+        Cancelled
+      </span>
+    <% } else { %>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+        <%= item.status %>
+      </span>
+    <% } %>
+  </div>
 
-    <a href="/events/<%= item.id %>">View details</a>
+  <div class="mb-4 pr-20">
+    <div class="flex items-center gap-2 text-xs font-semibold text-blue-600 mb-2 uppercase tracking-wider">
+      <%= item.category %>
+    </div>
+    <h3 class="text-lg font-bold text-slate-900 leading-tight mb-1 truncate" title="<%= item.title %>">
+      <%= item.title %>
+    </h3>
+  </div>
 
-    <% if (item.status === "draft") { %>
-    <button
-        hx-post="/events/<%= item.id %>/publish"
-        hx-target="#event-row-<%= item.id %>"
-        hx-swap="outerHTML">
-        Publish
-    </button>
-<% } %>
+  <div class="space-y-2.5 text-sm text-slate-600 mb-6 flex-grow">
+    <div class="flex items-start gap-2">
+      <svg class="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      <div>
+        <% const start = new Date(item.startDate); const end = new Date(item.endDate); %>
+        <div><%= start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %></div>
+        <div class="text-xs text-slate-400">to <%= end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) %></div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+      <span><%= item.attendeeCount %> / <%= item.capacity === 0 ? 'Unlimited' : item.capacity %> Attendees</span>
+    </div>
+  </div>
 
-<% if (item.status === "published") { %>
-    <button
-        hx-post="/events/<%= item.id %>/cancel"
-        hx-target="#event-row-<%= item.id %>"
-        hx-swap="outerHTML">
-        Cancel
-    </button>
-<% } %>
+  <div class="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
+    <a href="/events/<%= item.id %>" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
+      View Details &rarr;
+    </a>
+    
+    <div class="flex gap-2">
+      <% if (item.status === "draft") { %>
+        <button
+            hx-post="/events/<%= item.id %>/publish"
+            hx-target="#event-row-<%= item.id %>"
+            hx-swap="outerHTML"
+            class="px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1">
+            Publish
+        </button>
+      <% } %>
+      
+      <% if (item.status === "published") { %>
+        <button
+            hx-post="/events/<%= item.id %>/cancel"
+            hx-target="#event-row-<%= item.id %>"
+            hx-swap="outerHTML"
+            class="px-3 py-1.5 text-sm font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-1">
+            Cancel
+        </button>
+      <% } %>
+    </div>
+  </div>
 </div>
