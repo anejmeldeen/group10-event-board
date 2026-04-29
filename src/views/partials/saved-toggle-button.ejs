@@ -9,10 +9,20 @@
 >
   <input type="hidden" name="returnTo" value="<%= returnTo %>" />
   <input type="hidden" name="context" value="<%= context %>" />
-  <button
-    type="submit"
-    class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
-  >
-    <%= saved ? "Saved" : "Save for Later" %>
-  </button>
+  <% if (saved) { %>
+    <button
+      type="submit"
+      class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-colors"
+    >
+      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"></path></svg>
+      Saved
+    </button>
+  <% } else { %>
+    <button
+      type="submit"
+      class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
+    >
+      Save for Later
+    </button>
+  <% } %>
 </form>

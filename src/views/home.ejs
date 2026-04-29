@@ -33,11 +33,12 @@
 <form
   method="GET"
   action="/home"
-  class="mb-8"
+  class="mb-8 space-y-3"
   hx-get="/home"
-  hx-trigger="keyup changed delay:300ms from:input[name='q'], submit"
+  hx-trigger="keyup changed delay:300ms from:input[name='q'], change from:select, submit"
   hx-target="#event-list"
   hx-swap="innerHTML"
+  hx-push-url="true"
 >
   <div class="flex gap-3">
     <input
@@ -54,8 +55,31 @@
       Search
     </button>
   </div>
+
+  <div class="flex gap-3">
+    <select
+      name="category"
+      class="px-4 py-3 rounded-xl border border-slate-300 bg-white shadow-sm"
+    >
+      <option value="">All categories</option>
+      <option value="social" <%= selectedCategory === "social" ? "selected" : "" %>>Social</option>
+      <option value="educational" <%= selectedCategory === "educational" ? "selected" : "" %>>Educational</option>
+      <option value="volunteer" <%= selectedCategory === "volunteer" ? "selected" : "" %>>Volunteer</option>
+      <option value="sports" <%= selectedCategory === "sports" ? "selected" : "" %>>Sports</option>
+      <option value="arts" <%= selectedCategory === "arts" ? "selected" : "" %>>Arts</option>
+    </select>
+
+    <select
+      name="timeframe"
+      class="px-4 py-3 rounded-xl border border-slate-300 bg-white shadow-sm"
+    >
+      <option value="">All upcoming</option>
+      <option value="this-week" <%= selectedTimeframe === "this-week" ? "selected" : "" %>>This week</option>
+      <option value="this-weekend" <%= selectedTimeframe === "this-weekend" ? "selected" : "" %>>This weekend</option>
+    </select>
+  </div>
 </form>
 
 <div id="event-list">
-  <%- include("event/partials/event-list", { events, user }) %>
+  <%- include("event/partials/event-list", { events, user, savedEventIds: typeof savedEventIds !== 'undefined' ? savedEventIds : new Set() }) %>
 </div>

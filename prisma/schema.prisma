@@ -12,13 +12,27 @@ model Event {
   description   String
   location      String
   category      String
-  startDate     DateTime
-  endDate       DateTime
+  startDate     String   // ISO 8601 datetime string
+  endDate       String   // ISO 8601 datetime string
   organizerId   String
   organizerName String
-  status        String
-  capacity      Int
-  attendeeCount Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  status        String   @default("draft")
+  capacity      Int      @default(0)
+  attendeeCount Int      @default(0)
+  createdAt     String
+  updatedAt     String
+
+  rsvps         Rsvp[]
+}
+
+model Rsvp {
+  id        String @id
+  eventId   String
+  userId    String
+  status    String @default("going")
+  createdAt String
+
+  event     Event  @relation(fields: [eventId], references: [id])
+
+  @@unique([eventId, userId])
 }

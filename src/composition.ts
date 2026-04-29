@@ -1,3 +1,5 @@
+import { PrismaClient } from "@prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { CreateAdminUserService } from "./auth/AdminUserService";
 import { CreateAuthController } from "./auth/AuthController";
 import { CreateAuthService } from "./auth/AuthService";
@@ -14,7 +16,7 @@ import { CreateEventService } from "./event/EventService";
 import { CreateEventController } from "./event/EventController";
 
 // RSVP
-import { CreateInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+import { CreatePrismaRsvpRepository } from "./rsvp/PrismaRsvpRepository";
 import { CreateRsvpService } from "./rsvp/RsvpService";
 import { CreateRsvpController } from "./rsvp/RsvpController";
 
@@ -26,14 +28,19 @@ import { CreateSavedController } from "./saved/SavedController";
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
 
+  const adapter = new PrismaBetterSqlite3({
+    url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
+  });
+  const prisma = new PrismaClient({ adapter });
+
   const authUsers = CreateInMemoryUserRepository();
   const passwordHasher = CreatePasswordHasher();
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  const eventRepository = CreatePrismaEventRepository();
-  const rsvpRepository = CreateInMemoryRsvpRepository();
+  const eventRepository = CreatePrismaEventRepository(prisma);
+  const rsvpRepository = CreatePrismaRsvpRepository(prisma);
   const savedRepository = CreateInMemorySavedRepository();
 
   const eventService = CreateEventService(eventRepository, rsvpRepository);
@@ -42,7 +49,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
 
   const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
   const savedController = CreateSavedController(savedService, resolvedLogger);
-  const eventController = CreateEventController(eventService, resolvedLogger, rsvpController);
+  const eventController = CreateEventController(eventService, resolvedLogger, rsvpController, savedService);
 
   return CreateApp(
     authController,

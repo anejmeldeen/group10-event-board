@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { Ok, Err, type Result } from "../lib/result";
 import {
+  ValidationError,
   MissingRequiredField,
   FieldTooShort,
   FieldTooLong,
@@ -18,6 +19,7 @@ import {
   EventNotFound,
   EventNotAuthorized,
   EventInvalidState,
+  UnexpectedDependencyError,
   type EventError,
 } from "./errors";
 import type { IEventRepository } from "./EventRepository";
@@ -86,6 +88,8 @@ export interface IEventService {
   listVisibleEvents(
     currentUser: IAuthenticatedUserSession | null,
     query: string,
+    category?: string,
+    timeframe?: string,
   ): Promise<Result<IEventRecord[], EventError>>;
 
   publishEvent(
@@ -170,6 +174,34 @@ function validateSearchQuery(query: string): EventError | null {
       "query",
     );
   }
+  return null;
+}
+
+function validateFilterCategory(category: string): EventError | null {
+  const trimmed = category.trim().toLowerCase();
+  if (!trimmed) {
+    return null;
+  }
+
+  const allowedCategories = ["social", "educational", "volunteer", "sports", "arts"];
+  if (!allowedCategories.includes(trimmed)) {
+    return ValidationError("Invalid category filter.", "category");
+  }
+
+  return null;
+}
+
+function validateFilterTimeframe(timeframe: string): EventError | null {
+  const trimmed = timeframe.trim().toLowerCase();
+  if (!trimmed) {
+    return null;
+  }
+
+  const allowedTimeframes = ["this-week", "this-weekend"];
+  if (!allowedTimeframes.includes(trimmed)) {
+    return ValidationError("Invalid timeframe filter.", "timeframe");
+  }
+
   return null;
 }
 
@@ -309,34 +341,85 @@ class EventService implements IEventService {
   async listVisibleEvents(
     currentUser: IAuthenticatedUserSession | null,
     query: string,
+    category?: string,
+    timeframe?: string,
   ): Promise<Result<IEventRecord[], EventError>> {
     const queryErr = validateSearchQuery(query);
     if (queryErr) return Err(queryErr);
 
+    const categoryErr = validateFilterCategory(category ?? "");
+    if (categoryErr) return Err(categoryErr);
+
+    const timeframeErr = validateFilterTimeframe(timeframe ?? "");
+    if (timeframeErr) return Err(timeframeErr);
+
     const allResult = await this.repo.findAll();
     if (allResult.ok === false) return Err(allResult.value);
 
-    const events = allResult.value;
-    const isUserAdmin = currentUser?.role === "admin";
+    const now = new Date();
     const trimmedQuery = query.trim().toLowerCase();
+    const trimmedCategory = (category ?? "").trim().toLowerCase();
+    const trimmedTimeframe = (timeframe ?? "").trim().toLowerCase();
 
-    const visibleEvents = events.filter((e) => {
-      if (e.status === "draft") {
-        const isOwner = currentUser?.userId === e.organizerId;
-        if (!isOwner && !isUserAdmin) {
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfToday);
+    const daysUntilSunday = (7 - endOfWeek.getDay()) % 7;
+    endOfWeek.setDate(endOfWeek.getDate() + daysUntilSunday);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const saturday = new Date(startOfToday);
+    const daysUntilSaturday = (6 - saturday.getDay() + 7) % 7;
+    saturday.setDate(saturday.getDate() + daysUntilSaturday);
+    saturday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(saturday);
+    sunday.setDate(sunday.getDate() + 1);
+    sunday.setHours(23, 59, 59, 999);
+
+    const visibleEvents = allResult.value.filter((event) => {
+      if (event.status === "draft") {
+        const isOwner = currentUser?.userId === event.organizerId;
+        const isAdmin = currentUser?.role === "admin";
+        if (!isOwner && !isAdmin) {
+          return false;
+        }
+      } else if (event.status !== "published") {
+        return false;
+      }
+
+      const eventStart = new Date(event.startDate);
+      if (eventStart < now) {
+        return false;
+      }
+
+      if (trimmedQuery) {
+        const matchesQuery =
+          event.title.toLowerCase().includes(trimmedQuery) ||
+          event.description.toLowerCase().includes(trimmedQuery) ||
+          event.location.toLowerCase().includes(trimmedQuery);
+
+        if (!matchesQuery) {
           return false;
         }
       }
 
-      if (!trimmedQuery) {
-        return true;
+      if (trimmedCategory && event.category.toLowerCase() !== trimmedCategory) {
+        return false;
       }
 
-      return (
-        e.title.toLowerCase().includes(trimmedQuery) ||
-        e.description.toLowerCase().includes(trimmedQuery) ||
-        e.location.toLowerCase().includes(trimmedQuery)
-      );
+      if (trimmedTimeframe === "this-week") {
+        if (eventStart < startOfToday || eventStart > endOfWeek) {
+          return false;
+        }
+      } else if (trimmedTimeframe === "this-weekend") {
+        if (eventStart < saturday || eventStart > sunday) {
+          return false;
+        }
+      }
+
+      return true;
     });
 
     visibleEvents.sort(
@@ -347,6 +430,38 @@ class EventService implements IEventService {
   }
 
   async publishEvent(
+  eventId: string,
+  currentUser: IAuthenticatedUserSession | null,
+): Promise<Result<IEventSummary, EventError>> {
+  const eventResult = await this.repo.findById(eventId);
+  if (eventResult.ok === false) return Err(eventResult.value);
+
+  const event = eventResult.value;
+  if (!event) return Err(EventNotFound("Event not found."));
+
+  // Auth check first — before any state checks
+  const isOwner = currentUser?.userId === event.organizerId;
+  const isAdmin = currentUser?.role === "admin";
+
+  if (!isOwner && !isAdmin) {
+    return Err(EventNotAuthorized("You do not have permission to publish this event."));
+  }
+
+  // State check after auth
+  if (event.status !== "draft") {
+    return Err(EventInvalidState("Only draft events can be published."));
+  }
+
+  event.status = "published";
+  event.updatedAt = new Date().toISOString();
+
+  const updateResult = await this.repo.update(event);
+  if (updateResult.ok === false) return Err(updateResult.value);
+
+  return Ok(toEventSummary(updateResult.value));
+}
+
+  async cancelEvent(
     eventId: string,
     currentUser: IAuthenticatedUserSession | null,
   ): Promise<Result<IEventSummary, EventError>> {
@@ -360,41 +475,11 @@ class EventService implements IEventService {
     const isAdmin = currentUser?.role === "admin";
 
     if (!isOwner && !isAdmin) {
-      return Err(EventNotAuthorized("You do not have permission to publish this event."));
-    }
-
-    if (event.status !== "draft") {
-      return Err(EventInvalidState("Only draft events can be published."));
-    }
-
-    event.status = "published";
-    event.updatedAt = new Date().toISOString();
-
-    const updateResult = await this.repo.update(event);
-    if (updateResult.ok === false) return Err(updateResult.value);
-
-    return Ok(toEventSummary(updateResult.value));
-  }
-
-  async cancelEvent(
-    eventId: string,
-    currentUser: IAuthenticatedUserSession | null,
-    ): Promise<Result<IEventSummary, EventError>> {
-    const eventResult = await this.repo.findById(eventId);
-    if (eventResult.ok === false) return Err(eventResult.value);
-
-    const event = eventResult.value;
-    if (!event) return Err(EventNotFound("Event not found."));
-
-    const isOwner = currentUser?.userId === event.organizerId;
-    const isAdmin = currentUser?.role === "admin";
-
-    if (!isOwner && !isAdmin) {
-    return Err(EventNotAuthorized("You do not have permission to cancel this event."));
+      return Err(EventNotAuthorized("You do not have permission to cancel this event."));
     }
 
     if (event.status !== "published") {
-    return Err(EventInvalidState("Only published events can be cancelled."));
+      return Err(EventInvalidState("Only published events can be cancelled."));
     }
 
     event.status = "cancelled";
@@ -497,7 +582,7 @@ class EventService implements IEventService {
     for (const event of eventsResult.value) {
       const countResult = await this.rsvpRepo.countGoing(event.id);
       if (countResult.ok === false) {
-        return Err(EventNotAuthorized("Could not load attendee count."));
+        return Err(UnexpectedDependencyError("Could not load attendee count."));
       }
 
       const item: IOrganizerDashboardItem = {

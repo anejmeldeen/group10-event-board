@@ -74,12 +74,13 @@
                   View Event
                 </a>
 
-                <form method="POST" action="/saved/<%= event.id %>/toggle">
-                  <input type="hidden" name="returnTo" value="/home" />
-                  <button type="submit" class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-sm transition-colors cursor-pointer">
-                    Save for Later
-                  </button>
-                </form>
+                <%- include("../../partials/saved-toggle-button", {
+                  eventId: event.id,
+                  saved: typeof savedEventIds !== 'undefined' && savedEventIds.has ? savedEventIds.has(event.id) : false,
+                  returnTo: "/home",
+                  context: "home",
+                  htmx: true,
+                }) %>
               </div>
             <% } %>
           </div>
