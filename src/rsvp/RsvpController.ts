@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { IRsvpService } from "./RsvpService";
 import type { IRsvpView } from "./Rsvp";
 import {
@@ -8,9 +8,11 @@ import {
 } from "../session/AppSession";
 import type { ILoggingService } from "../service/LoggingService";
 import type { RsvpError } from "./errors";
+import type { IEventRecord } from "../event/Event";
 
 export interface IRsvpController {
   toggleRsvp(
+    req: Request,
     res: Response,
     eventId: string,
     store: AppSessionStore,
@@ -19,9 +21,7 @@ export interface IRsvpController {
   getRsvpView(
     eventId: string,
     store: AppSessionStore,
-    eventStatus: string,
-    eventOrganizerId: string,
-    eventCapacity: number,
+    event: IEventRecord,
   ): Promise<IRsvpView>;
 
   getMyRsvpDashboard(
@@ -50,6 +50,7 @@ class RsvpController implements IRsvpController {
   }
 
   async toggleRsvp(
+    req: Request,
     res: Response,
     eventId: string,
     store: AppSessionStore,
@@ -79,14 +80,16 @@ class RsvpController implements IRsvpController {
       return;
     }
 
-    this.logger.info(`RSVP toggled for event ${eventId}: ${result.value.newStatus}`);
+    this.logger.info(`RSVP toggled for event ${eventId}: ${result.value.toggleResult.newStatus}`);
 
     if (isHtmx) {
-      const rsvpView = await this.getRsvpView(eventId, store, "published", "", result.value.capacity);
+      const variant = req.body.variant;
+      const rsvpView = await this.getRsvpView(eventId, store, result.value.event);
       res.render("event/partials/rsvp", {
         rsvpView,
         eventId,
-        capacity: result.value.capacity,
+        capacity: result.value.toggleResult.capacity,
+        variant,
         layout: false,
       });
       return;
@@ -98,18 +101,14 @@ class RsvpController implements IRsvpController {
   async getRsvpView(
     eventId: string,
     store: AppSessionStore,
-    eventStatus: string,
-    eventOrganizerId: string,
-    eventCapacity: number,
+    event: IEventRecord,
   ): Promise<IRsvpView> {
     const currentUser = getAuthenticatedUser(store);
 
     const result = await this.service.getRsvpView(
       eventId,
       currentUser,
-      eventStatus,
-      eventOrganizerId,
-      eventCapacity,
+      event,
     );
 
     if (result.ok === false) {
@@ -117,7 +116,7 @@ class RsvpController implements IRsvpController {
         canRsvp: false,
         currentStatus: "none",
         goingCount: 0,
-        capacity: eventCapacity,
+        capacity: event.capacity,
       };
     }
 

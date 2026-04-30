@@ -8,6 +8,8 @@ function toEventRecord(event: any): IEventRecord {
   return {
     ...event,
     status: event.status as IEventRecord["status"],
+    isPrivate: Boolean(event.isPrivate),
+    invitedEmails: event.invitedEmails ? JSON.parse(event.invitedEmails) : [],
   };
 }
 
@@ -19,6 +21,7 @@ class PrismaEventRepository implements IEventRepository {
       const created = await this.prisma.event.create({
         data: {
           ...event,
+          invitedEmails: JSON.stringify(event.invitedEmails || []),
         },
       });
 
@@ -110,6 +113,7 @@ class PrismaEventRepository implements IEventRepository {
         where: { id: event.id },
         data: {
           ...event,
+          invitedEmails: JSON.stringify(event.invitedEmails || []),
         },
       });
 

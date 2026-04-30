@@ -11,6 +11,8 @@ import {
 } from "./errors";
 import type { IAuthenticatedUserSession } from "../session/AppSession";
 
+import type { IEventRecord } from "../event/Event";
+
 export interface IMyRsvpDashboardItem {
   eventId: string;
   title: string;
@@ -33,19 +35,21 @@ export interface IRsvpService {
   toggleRsvp(
     eventId: string,
     currentUser: IAuthenticatedUserSession,
-  ): Promise<Result<IToggleRsvpResult, RsvpError>>;
+  ): Promise<Result<{ toggleResult: IToggleRsvpResult, event: IEventRecord }, RsvpError>>;
 
   getRsvpView(
     eventId: string,
     currentUser: IAuthenticatedUserSession | null,
-    eventStatus: string,
-    eventOrganizerId: string,
-    eventCapacity: number,
+    event: IEventRecord,
   ): Promise<Result<IRsvpView, RsvpError>>;
 
   getMyRsvpDashboard(
     currentUser: IAuthenticatedUserSession,
   ): Promise<Result<IMyRsvpDashboardData, RsvpError>>;
+
+  getUserRsvpStatuses(
+    userId: string
+  ): Promise<Result<Map<string, string>, RsvpError>>;
 }
 
 class RsvpService implements IRsvpService {
@@ -122,7 +126,7 @@ class RsvpService implements IRsvpService {
   async toggleRsvp(
     eventId: string,
     currentUser: IAuthenticatedUserSession,
-  ): Promise<Result<IToggleRsvpResult, RsvpError>> {
+  ): Promise<Result<{ toggleResult: IToggleRsvpResult, event: IEventRecord }, RsvpError>> {
     // 1. Load the event
     const eventResult = await this.eventRepo.findById(eventId);
     if (eventResult.ok === false) {
@@ -141,6 +145,13 @@ class RsvpService implements IRsvpService {
     // 3. Check role — only regular users (members) can RSVP
     if (currentUser.role === "admin" || currentUser.role === "staff") {
       return Err(RsvpNotAllowed("Organizers and admins cannot RSVP to events."));
+    }
+
+    // 3.5. Check private event rules
+    if (event.isPrivate) {
+      if (!event.invitedEmails.some(e => e.toLowerCase() === currentUser.email.toLowerCase())) {
+        return Err(RsvpNotAllowed("You are not invited to this private event."));
+      }
     }
 
     // 4. Load existing RSVP (if any)
@@ -201,25 +212,36 @@ class RsvpService implements IRsvpService {
     await this.eventRepo.update(event);
 
     return Ok({
-      newStatus,
-      goingCount: newGoingCount,
-      capacity: event.capacity,
+      toggleResult: {
+        newStatus,
+        goingCount: newGoingCount,
+        capacity: event.capacity,
+      },
+      event
     });
   }
 
   async getRsvpView(
     eventId: string,
     currentUser: IAuthenticatedUserSession | null,
-    eventStatus: string,
-    eventOrganizerId: string,
-    eventCapacity: number,
+    event: IEventRecord,
   ): Promise<Result<IRsvpView, RsvpError>> {
+    // Check if private event rules fail first
+    let isAllowed = true;
+    if (event.isPrivate) {
+      const isInvited = currentUser && event.invitedEmails.some(e => e.toLowerCase() === currentUser.email.toLowerCase());
+      if (!isInvited) {
+        isAllowed = false;
+      }
+    }
+
     // If not logged in, or organizer/admin/staff, or event not published — can't RSVP
     if (
+      !isAllowed ||
       !currentUser ||
       currentUser.role === "admin" ||
       currentUser.role === "staff" ||
-      eventStatus !== "published"
+      event.status !== "published"
     ) {
       const countResult = await this.rsvpRepo.countGoing(eventId);
       const goingCount = countResult.ok ? countResult.value : 0;
@@ -228,7 +250,7 @@ class RsvpService implements IRsvpService {
         canRsvp: false,
         currentStatus: "none" as const,
         goingCount,
-        capacity: eventCapacity,
+        capacity: event.capacity,
       });
     }
 
@@ -247,8 +269,21 @@ class RsvpService implements IRsvpService {
       canRsvp: true,
       currentStatus: existingResult.value?.status ?? ("none" as const),
       goingCount: countResult.value,
-      capacity: eventCapacity,
+      capacity: event.capacity,
     });
+  }
+
+  async getUserRsvpStatuses(
+    userId: string
+  ): Promise<Result<Map<string, string>, RsvpError>> {
+    const rsvps = await this.rsvpRepo.listByUser(userId);
+    if (rsvps.ok === false) return Err(rsvps.value);
+
+    const map = new Map<string, string>();
+    for (const rsvp of rsvps.value) {
+      map.set(rsvp.eventId, rsvp.status);
+    }
+    return Ok(map);
   }
 }
 

@@ -154,9 +154,44 @@
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium text-slate-700 shadow-sm"
             />
             <p class="text-slate-500 text-xs font-medium mt-1 ml-1 flex items-center gap-1.5">
-              <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               If set to 0, the event will have unlimited capacity.
             </p>
+          </div>
+        </div>
+
+        <div class="space-y-4 pt-2">
+          <h2 class="text-lg font-black text-slate-900 flex items-center gap-3 border-b border-slate-100 pb-2">
+            <span class="w-5 h-1 bg-indigo-600 rounded-full inline-block"></span>
+            Privacy & Invites
+          </h2>
+
+          <% 
+            const isInitialPrivate = input.isPrivate === 'on' || input.isPrivate === 'true' || input.isPrivate === true;
+          %>
+          <div x-data="{ isPrivate: <%= isInitialPrivate ? 'true' : 'false' %> }">
+            <label class="flex items-center gap-3 cursor-pointer mb-3">
+              <div class="relative">
+                <input type="checkbox" id="isPrivate" name="isPrivate" x-model="isPrivate" value="on" class="sr-only">
+                <div class="block w-12 h-7 rounded-full transition-colors" :class="isPrivate ? 'bg-indigo-600' : 'bg-indigo-100 border border-indigo-200'"></div>
+                <div class="dot absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform" :class="isPrivate ? 'transform translate-x-5' : ''"></div>
+              </div>
+              <div class="text-sm font-bold text-slate-700">Make this event private</div>
+            </label>
+
+            <div x-show="isPrivate" x-transition class="mt-3">
+              <label for="invitedEmails" class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Invited Emails</label>
+              <textarea
+                id="invitedEmails"
+                name="invitedEmails"
+                rows="2"
+                placeholder="email1@example.com, email2@example.com"
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium text-slate-700 shadow-sm resize-y"
+              ><%= input.invitedEmails || '' %></textarea>
+              <p class="text-slate-500 text-xs font-medium mt-1 ml-1">
+                Comma-separated list of emails allowed to RSVP.
+              </p>
+            </div>
           </div>
         </div>
 

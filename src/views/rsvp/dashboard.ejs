@@ -1,55 +1,90 @@
+<!-- Hero Header Section -->
+<div class="relative bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 rounded-3xl overflow-hidden mb-10 shadow-2xl shadow-slate-200/50">
+  <div class="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+  <div class="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+  
+  <div class="relative z-10 px-8 py-10 sm:px-12 sm:py-12 text-white flex flex-col md:flex-row items-center justify-between gap-8">
+    <div>
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold tracking-widest text-indigo-100 bg-white/10 rounded-full uppercase shadow-lg shadow-black/10 backdrop-blur-md border border-white/20 mb-3">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+        </svg>
+        My Reservations
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-100">
+        My RSVPs
+      </h1>
+      <p class="text-indigo-200 mt-2 text-lg font-medium">Your personal schedule of upcoming and past events.</p>
+    </div>
+    <div class="shrink-0">
+      <a href="/home" class="px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl transition-all shadow-lg no-underline flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+        Back to Dashboard
+      </a>
+    </div>
+  </div>
+</div>
+
 <% if (!upcoming.length && !history.length) { %>
-  <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
-    <svg class="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-    <h1 class="text-2xl font-bold text-slate-900">My RSVPs</h1>
-    <p class="text-slate-500 mt-2">You haven&apos;t RSVPed to any events yet. Browse events on the <a href="/home" class="text-blue-600 hover:underline font-medium">dashboard</a> and start signing up!</p>
+  <div class="bg-white rounded-3xl border border-slate-100 p-16 text-center shadow-2xl shadow-slate-200/30">
+    <div class="w-24 h-24 bg-indigo-50 text-indigo-300 rounded-full flex items-center justify-center mx-auto mb-6">
+      <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+    </div>
+    <h3 class="text-2xl font-black text-slate-900 tracking-tight">No RSVPs yet</h3>
+    <p class="text-slate-500 mt-2 text-lg">You haven't signed up for any events yet.</p>
+    <a href="/home" class="mt-8 inline-block px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 no-underline">Browse Events</a>
   </div>
 <% } else { %>
-  <div class="mb-8">
-    <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">My RSVPs</h1>
-    <p class="text-slate-500 mt-1">Events you've signed up for.</p>
-  </div>
-
-  <% if (upcoming.length > 0) { %>
-    <section class="mb-10">
-      <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-        Upcoming
-        <span class="text-sm font-normal text-slate-400">(<%= upcoming.length %>)</span>
-      </h2>
-      <div class="space-y-4">
-        <% upcoming.forEach(item => { %>
-          <%- include("dashboard-row", { item }) %>
-        <% }) %>
-      </div>
-    </section>
-  <% } %>
-
-  <% if (history.length > 0) { %>
-    <section>
-      <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-        <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-        History
-        <span class="text-sm font-normal text-slate-400">(<%= history.length %>)</span>
-      </h2>
-      <div class="space-y-4">
-  <% history.forEach(item => { %>
-          <a href="/events/<%= item.eventId %>" class="block no-underline">
-            <article class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm opacity-70">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="inline-block px-2 py-0.5 text-xs font-bold rounded-md bg-slate-100 text-slate-600">
-                  <%= item.rsvpStatus.charAt(0).toUpperCase() + item.rsvpStatus.slice(1) %>
-                </span>
-                <% if (item.eventStatus === 'cancelled') { %>
-                  <span class="inline-block px-2 py-0.5 text-xs font-bold rounded-md bg-rose-100 text-rose-800">Event Cancelled</span>
-                <% } %>
-              </div>
-              <h3 class="text-lg font-bold text-slate-900"><%= item.title %></h3>
-              <p class="text-sm text-slate-500 mt-1"><%= item.location %> &middot; by <%= item.organizerName %></p>
-            </article>
-          </a>
-        <% }) %>
+  <div class="space-y-12">
+    <% if (upcoming.length > 0) { %>
+      <section>
+        <h2 class="text-xl font-black text-slate-900 mb-6 flex items-center gap-3 border-b border-slate-100 pb-3">
+          <span class="w-4 h-4 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+          Upcoming Events
+          <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md ml-1"><%= upcoming.length %></span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <% upcoming.forEach(item => { %>
+            <%- include("dashboard-row", { item }) %>
+          <% }) %>
         </div>
-    </section>
-  <% } %>
+      </section>
+    <% } %>
+
+    <% if (history.length > 0) { %>
+      <section>
+        <h2 class="text-xl font-black text-slate-900 mb-6 flex items-center gap-3 border-b border-slate-100 pb-3">
+          <span class="w-4 h-4 rounded-full bg-slate-400 shadow-sm shadow-slate-400/50"></span>
+          Past & History
+          <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md ml-1"><%= history.length %></span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-70">
+          <% history.forEach(item => { %>
+            <a href="/events/<%= item.eventId %>" class="group block no-underline">
+              <article class="h-full bg-white rounded-3xl border border-slate-100 p-6 shadow-xl shadow-slate-200/30 transition-all group-hover:shadow-indigo-500/10 group-hover:-translate-y-1">
+                <div class="flex items-center justify-between gap-2 mb-4">
+                  <span class="inline-flex px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full bg-slate-100 text-slate-500 border border-slate-200/50">
+                    <%= item.rsvpStatus %>
+                  </span>
+                  <% if (item.eventStatus === 'cancelled') { %>
+                    <span class="inline-flex px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full bg-rose-50 text-rose-500 border border-rose-100">
+                      Cancelled
+                    </span>
+                  <% } %>
+                </div>
+                <h3 class="text-lg font-black text-slate-900 leading-tight group-hover:text-indigo-600 transition-colors mb-2"><%= item.title %></h3>
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-2 text-xs font-bold text-slate-400">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <%= item.location %>
+                  </div>
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">by <%= item.organizerName %></div>
+                </div>
+              </article>
+            </a>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+  </div>
 <% } %>

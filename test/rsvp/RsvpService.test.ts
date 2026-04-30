@@ -21,6 +21,8 @@ async function seedEvent(repo: IEventRepository, overrides: Partial<import("../.
     organizerId: "user-staff",
     organizerName: "Sam Staff",
     attendeeCount: 0,
+    isPrivate: false,
+    invitedEmails: [],
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -99,8 +101,8 @@ describe("RsvpService.toggleRsvp", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.newStatus).toBe("going");
-      expect(result.value.goingCount).toBe(1);
+      expect(result.value.toggleResult.newStatus).toBe("going");
+      expect(result.value.toggleResult.goingCount).toBe(1);
     }
   });
 
@@ -117,8 +119,8 @@ describe("RsvpService.toggleRsvp", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.newStatus).toBe("waitlisted");
-      expect(result.value.goingCount).toBe(1);
+      expect(result.value.toggleResult.newStatus).toBe("waitlisted");
+      expect(result.value.toggleResult.goingCount).toBe(1);
     }
   });
 
@@ -131,9 +133,9 @@ describe("RsvpService.toggleRsvp", () => {
     const r2 = await service.toggleRsvp("evt-1", secondMember());
     const r3 = await service.toggleRsvp("evt-1", thirdMember());
 
-    expect(r1.ok && r1.value.newStatus).toBe("going");
-    expect(r2.ok && r2.value.newStatus).toBe("going");
-    expect(r3.ok && r3.value.newStatus).toBe("going");
+    expect(r1.ok && r1.value.toggleResult.newStatus).toBe("going");
+    expect(r2.ok && r2.value.toggleResult.newStatus).toBe("going");
+    expect(r3.ok && r3.value.toggleResult.newStatus).toBe("going");
   });
 
   // ── Toggle: active → cancelled ─────────────────────────────────
@@ -146,8 +148,8 @@ describe("RsvpService.toggleRsvp", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.newStatus).toBe("cancelled");
-      expect(result.value.goingCount).toBe(0);
+      expect(result.value.toggleResult.newStatus).toBe("cancelled");
+      expect(result.value.toggleResult.goingCount).toBe(0);
     }
   });
 
@@ -165,8 +167,8 @@ describe("RsvpService.toggleRsvp", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.newStatus).toBe("going");
-      expect(result.value.goingCount).toBe(1);
+      expect(result.value.toggleResult.newStatus).toBe("going");
+      expect(result.value.toggleResult.goingCount).toBe(1);
     }
   });
 
@@ -185,7 +187,7 @@ describe("RsvpService.toggleRsvp", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.newStatus).toBe("waitlisted");
+      expect(result.value.toggleResult.newStatus).toBe("waitlisted");
     }
   });
 
@@ -201,7 +203,7 @@ describe("RsvpService.toggleRsvp", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.newStatus).toBe("cancelled");
+      expect(result.value.toggleResult.newStatus).toBe("cancelled");
     }
   });
 
@@ -218,7 +220,7 @@ describe("RsvpService.toggleRsvp", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.goingCount).toBe(2);
+      expect(result.value.toggleResult.goingCount).toBe(2);
     }
   });
 
