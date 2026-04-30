@@ -96,7 +96,7 @@ describe("Saved events feature", () => {
 
     expect(response.status).toBe(200);
     expect(response.text).toContain("Movie Night");
-    expect(response.text).toContain("Remove Saved Event");
+    expect(response.text).toContain("Remove from saved");
   });
 
   it("rejects admin from saving an event", async () => {

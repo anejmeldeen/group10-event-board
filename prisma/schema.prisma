@@ -7,7 +7,7 @@ datasource db {
 }
 
 model Event {
-  id            String      @id
+  id            String  @id
   title         String
   description   String
   location      String
@@ -16,35 +16,37 @@ model Event {
   endDate       String
   organizerId   String
   organizerName String
-  status        String      @default("draft")
-  capacity      Int         @default(0)
-  attendeeCount Int         @default(0)
+  status        String  @default("draft")
+  capacity      Int     @default(0)
+  attendeeCount Int     @default(0)
+  isPrivate     Boolean @default(false)
+  invitedEmails String  @default("")
   createdAt     String
   updatedAt     String
 
-  rsvps         Rsvp[]
-  savedEvents   SavedEvent[]
+  rsvps       Rsvp[]
+  savedEvents SavedEvent[]
 }
 
 model Rsvp {
-  id        String   @id
+  id        String @id
   eventId   String
   userId    String
-  status    String   @default("going")
+  status    String @default("going")
   createdAt String
 
-  event     Event    @relation(fields: [eventId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
 
   @@unique([eventId, userId])
 }
 
 model SavedEvent {
-  id        String   @id
+  id        String @id
   userId    String
   eventId   String
   createdAt String
 
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
 }

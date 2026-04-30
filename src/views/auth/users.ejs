@@ -1,102 +1,153 @@
-<section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
-  <h1 class="text-3xl font-bold text-slate-900 mb-3">Admin User Management</h1>
-  <p class="text-slate-500">
-    Admin accounts can add new users, assign roles, and remove existing users from the
-    in-memory user repository.
-  </p>
-</section>
+<!-- Hero Header Section -->
+<div class="relative bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 rounded-3xl overflow-hidden mb-10 shadow-2xl shadow-slate-200/50">
+  <div class="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+  <div class="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+  
+  <div class="relative z-10 px-8 py-10 sm:px-12 sm:py-12 text-white flex flex-col md:flex-row items-center justify-between gap-8">
+    <div>
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold tracking-widest text-indigo-100 bg-white/10 rounded-full uppercase shadow-lg shadow-black/10 backdrop-blur-md border border-white/20 mb-3">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+        Admin Panel
+      </div>
+      <h1 class="text-4xl font-black tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-100">User Management</h1>
+      <p class="text-indigo-200 mt-2 text-lg font-medium">Add, assign roles, and manage system access.</p>
+    </div>
+  </div>
+</div>
 
 <% if (pageError) { %>
-  <%- include("partials/error", { message: pageError }) %>
+  <div class="mb-8">
+    <%- include("partials/error", { message: pageError }) %>
+  </div>
 <% } %>
 
-<section class="grid grid-cols-1 md:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)] gap-5">
-  <section class="p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold mb-2">Add User</h2>
-      <p class="text-slate-500">Create a new admin, staff, or user account with a hashed password.</p>
-    </div>
-
-    <form class="grid gap-2.5" method="post" action="/admin/users">
-      <label for="displayName" class="text-sm font-medium">Display Name</label>
-      <input
-        id="displayName"
-        name="displayName"
-        required
-        class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
-      />
-
-      <label for="email" class="text-sm font-medium">Email</label>
-      <input
-        id="email"
-        name="email"
-        type="email"
-        autocomplete="email"
-        required
-        class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
-      />
-
-      <label for="password" class="text-sm font-medium">Password</label>
-      <input
-        id="password"
-        name="password"
-        type="password"
-        autocomplete="new-password"
-        required
-        class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
-      />
-
-      <label for="role" class="text-sm font-medium">Role</label>
-      <select
-        id="role"
-        name="role"
-        class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
-      >
-        <option value="user">User</option>
-        <option value="staff">Staff</option>
-        <option value="admin">Admin</option>
-      </select>
-
-      <button
-        type="submit"
-        class="mt-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium cursor-pointer hover:bg-blue-700"
-      >
-        Add User
-      </button>
-    </form>
-  </section>
-
-  <section class="p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold mb-2">Existing Users</h2>
-      <p class="text-slate-500">The admin can remove any account except the currently signed-in admin.</p>
-    </div>
-
-    <ul class="list-none m-0 p-0 grid gap-3.5">
-      <% users.forEach((user) => { %>
-        <li class="flex items-center justify-between gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+  <!-- Add User Form -->
+  <aside class="lg:col-span-4 lg:sticky lg:top-8">
+    <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+      <div class="p-6 border-b border-slate-50">
+        <h2 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+          Add New User
+        </h2>
+      </div>
+      <div class="p-6">
+        <form class="space-y-4" method="post" action="/admin/users">
           <div>
-            <strong class="text-slate-900"><%= user.displayName %></strong>
-            <p class="text-sm text-slate-500 mt-0.5 mb-0"><%= user.email %></p>
-            <p class="text-sm text-slate-500 mb-0">role=<%= user.role %></p>
+            <label for="displayName" class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Display Name</label>
+            <input
+              id="displayName"
+              name="displayName"
+              required
+              placeholder="e.g. John Doe"
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 outline-none transition-all font-medium text-slate-700"
+            />
           </div>
 
-          <% if (session.authenticatedUser && session.authenticatedUser.userId === user.id) { %>
-            <span class="inline-flex items-center justify-center min-w-[110px] px-2.5 py-1.5 rounded-full text-sm font-semibold capitalize bg-blue-600/12 text-blue-700">
-              Current Admin
-            </span>
-          <% } else { %>
-            <form method="post" action="/admin/users/<%= user.id %>/delete" class="m-0">
-              <button
-                type="submit"
-                class="px-3.5 py-2 rounded-lg bg-red-700 text-white font-medium cursor-pointer hover:bg-red-800 text-sm"
+          <div>
+            <label for="email" class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email Address</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              placeholder="name@company.com"
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 outline-none transition-all font-medium text-slate-700"
+            />
+          </div>
+
+          <div>
+            <label for="password" class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Initial Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              required
+              placeholder="••••••••"
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 outline-none transition-all font-medium text-slate-700"
+            />
+          </div>
+
+          <div>
+            <label for="role" class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">System Role</label>
+            <div class="relative">
+              <select
+                id="role"
+                name="role"
+                class="w-full appearance-none px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 outline-none transition-all font-medium text-slate-700 pr-10"
               >
-                Remove
-              </button>
-            </form>
-          <% } %>
-        </li>
-      <% }) %>
-    </ul>
-  </section>
-</section>
+                <option value="user">Member (Standard)</option>
+                <option value="staff">Staff (Event Creator)</option>
+                <option value="admin">Admin (Full Control)</option>
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer mt-2"
+          >
+            Create Account
+          </button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  <!-- User List -->
+  <main class="lg:col-span-8">
+    <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+      <div class="p-6 border-b border-slate-50 flex items-center justify-between">
+        <h2 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <svg class="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+          Active Accounts
+        </h2>
+        <span class="text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100"><%= users.length %> Total Users</span>
+      </div>
+      
+      <div class="divide-y divide-slate-50">
+        <% users.forEach((user) => { %>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-2xl bg-gradient-to-br <%= user.role === 'admin' ? 'from-rose-400 to-rose-600' : user.role === 'staff' ? 'from-indigo-400 to-indigo-600' : 'from-emerald-400 to-emerald-600' %> flex items-center justify-center text-white font-black text-lg shadow-lg">
+                <%= user.displayName.charAt(0).toUpperCase() %>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-black text-slate-900 tracking-tight"><%= user.displayName %></h3>
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider <%= user.role === 'admin' ? 'bg-rose-100 text-rose-600' : user.role === 'staff' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600' %>">
+                    <%= user.role %>
+                  </span>
+                </div>
+                <p class="text-sm font-medium text-slate-500 mt-0.5"><%= user.email %></p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <% if (session.authenticatedUser && session.authenticatedUser.userId === user.id) { %>
+                <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 text-slate-500 text-xs font-black uppercase tracking-wider border border-slate-200">
+                  <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                  You (Current)
+                </span>
+              <% } else { %>
+                <form method="post" action="/admin/users/<%= user.id %>/delete" class="m-0" onsubmit="return confirm('Are you sure you want to remove this user?')">
+                  <button
+                    type="submit"
+                    class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-rose-500 font-bold text-xs uppercase tracking-wider hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition-all shadow-sm cursor-pointer"
+                  >
+                    Remove Access
+                  </button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </main>
+</div>

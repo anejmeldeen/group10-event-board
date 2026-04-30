@@ -13,16 +13,38 @@
       <p class="text-indigo-200 mt-3 text-lg font-medium">Discover what's happening and plan your schedule.</p>
     </div>
 
-    <div class="flex flex-wrap gap-4 shrink-0">
+    <div class="flex flex-col gap-3 shrink-0">
       <% if (user?.role === 'user') { %>
+        <a href="/rsvps/me" class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-500/20 hover:bg-indigo-500/30 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+          </svg>
+          My RSVPs
+        </a>
         <a href="/saved" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
-          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
           Saved Events
         </a>
       <% } %>
 
       <% if (user?.role === 'admin' || user?.role === 'staff') { %>
-        <a href="/events/create" class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-500 hover:bg-indigo-400 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors no-underline">
+        <a href="/organizer/dashboard" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          My Events
+        </a>
+        <% if (user?.role === 'admin') { %>
+          <a href="/admin/users" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Manage Users
+          </a>
+        <% } %>
+        <a href="/events/create" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
           Create Event
         </a>
@@ -105,17 +127,15 @@
     </div>
   </div>
 
-  <a
-    href="/home"
-    hx-get="/home"
-    hx-target="#event-list"
-    hx-push-url="true"
+  <button
+    type="button"
+    @click="q = ''; category = ''; timeframe = ''; $nextTick(() => { $el.closest('form').dispatchEvent(new Event('submit', {bubbles: true})); })"
     x-show="q || category || timeframe"
     x-cloak
-    class="self-end px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl border border-slate-300 no-underline"
+    class="self-end px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl border border-slate-300 no-underline cursor-pointer transition-all"
   >
     Clear filters
-  </a>
+  </button>
   
   <button type="submit" class="hidden">Search</button>
 </form>
