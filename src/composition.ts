@@ -21,7 +21,7 @@ import { CreateRsvpService } from "./rsvp/RsvpService";
 import { CreateRsvpController } from "./rsvp/RsvpController";
 
 // Saved
-import { CreateInMemorySavedRepository } from "./saved/InMemorySavedRepository";
+import { CreatePrismaSavedRepository } from "./saved/PrismaSavedRepository";
 import { CreateSavedService } from "./saved/SavedService";
 import { CreateSavedController } from "./saved/SavedController";
 
@@ -41,7 +41,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
 
   const eventRepository = CreatePrismaEventRepository(prisma);
   const rsvpRepository = CreatePrismaRsvpRepository(prisma);
-  const savedRepository = CreateInMemorySavedRepository();
+  const savedRepository = CreatePrismaSavedRepository(prisma);
 
   const eventService = CreateEventService(eventRepository, rsvpRepository);
   const rsvpService = CreateRsvpService(rsvpRepository, eventRepository);
@@ -49,7 +49,12 @@ export function createComposedApp(logger?: ILoggingService): IApp {
 
   const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
   const savedController = CreateSavedController(savedService, resolvedLogger);
-  const eventController = CreateEventController(eventService, resolvedLogger, rsvpController, savedService);
+  const eventController = CreateEventController(
+    eventService,
+    resolvedLogger,
+    rsvpController,
+    savedService,
+  );
 
   return CreateApp(
     authController,

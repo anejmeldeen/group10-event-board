@@ -34,9 +34,11 @@ describe("Saved events feature", () => {
       });
 
     const homeRes = await agent.get("/home");
-    const match = homeRes.text.match(/\/events\/([a-f0-9-]+)\/publish/);
+    const regex = new RegExp(`${title}[\\s\\S]*?action="/events/([a-f0-9-]+)/publish"`);
+    const match = homeRes.text.match(regex);
     if (!match) {
-      throw new Error("Could not find created draft event id.");
+      console.log("HTML:", homeRes.text);
+      throw new Error(`Could not find created draft event id for title: ${title}`);
     }
 
     const eventId = match[1];

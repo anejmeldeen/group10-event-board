@@ -54,7 +54,8 @@ class PrismaRsvpRepository implements IRsvpRepository {
       return Err(RsvpRepositoryError("Failed to save RSVP."));
     }
   }
-
+// Feature 8 Sprint 3: aggregates attendee count per event using prisma.rsvp.count
+// replaces in-memory counting from Sprint 1
   async countGoing(eventId: string): Promise<Result<number, RsvpError>> {
     try {
       const count = await this.prisma.rsvp.count({
@@ -68,7 +69,8 @@ class PrismaRsvpRepository implements IRsvpRepository {
       return Err(RsvpRepositoryError("Failed to count RSVPs."));
     }
   }
-
+// Feature 7 Sprint 3: retrieves all RSVPs for a user ordered by createdAt
+// used by getMyRsvpDashboard to group into upcoming and history sections
   async listByUser(userId: string): Promise<Result<IRsvpRecord[], RsvpError>> {
     try {
       const rows = await this.prisma.rsvp.findMany({

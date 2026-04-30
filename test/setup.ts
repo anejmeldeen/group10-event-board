@@ -1,13 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
+// Ensure the application uses the test database during tests
+process.env.DATABASE_URL = "file:./prisma/test.db";
+
 const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
+  url: "file:./prisma/test.db",
 });
+
 const prisma = new PrismaClient({ adapter });
 
-beforeAll(async () => {
-  // Clear the database before each test suite runs to prevent tests from failing
+beforeEach(async () => {
   await prisma.rsvp.deleteMany();
   await prisma.event.deleteMany();
 });
