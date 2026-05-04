@@ -81,8 +81,21 @@
         x-model="q"
         value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>"
         placeholder="Find an event by title, desc, or location..."
-        class="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium text-slate-700 shadow-sm"
+        class="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium text-slate-700 shadow-sm"
       />
+      <button
+        type="button"
+        x-show="q"
+        x-cloak
+        @click="q = ''; $nextTick(() => { $el.closest('form').dispatchEvent(new Event('submit', { bubbles: true })); })"
+        class="absolute inset-y-0 right-3 my-auto h-8 w-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-500 hover:text-slate-700 transition-colors"
+        aria-label="Clear search"
+        title="Clear search"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   </div>
 
