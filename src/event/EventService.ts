@@ -27,6 +27,7 @@ import type { IEventRecord, IEventSummary } from "./Event";
 import { toEventSummary } from "./Event";
 import type { IAuthenticatedUserSession } from "../session/AppSession";
 import type { IRsvpRepository } from "../rsvp/RsvpRepository";
+import type { ILoggingService } from "../service/LoggingService";
 
 export interface CreateEventInput {
   title: string;
@@ -36,6 +37,8 @@ export interface CreateEventInput {
   startDate: string;
   endDate: string;
   capacity: string;
+  isPrivate?: string;
+  invitedEmails?: string;
 }
 
 export interface UpdateEventInput {
@@ -46,6 +49,8 @@ export interface UpdateEventInput {
   startDate: string;
   endDate: string;
   capacity: string;
+  isPrivate?: string;
+  invitedEmails?: string;
 }
 
 export interface OrganizerIdentity {
@@ -255,6 +260,7 @@ class EventService implements IEventService {
   constructor(
     private readonly repo: IEventRepository,
     private readonly rsvpRepo: IRsvpRepository,
+    private readonly logger: ILoggingService,
   ) {}
 
   async createEvent(
@@ -288,6 +294,9 @@ class EventService implements IEventService {
     if (capResult.ok === false) return Err(capResult.value);
     const capacity = capResult.value;
 
+    const isPrivate = input.isPrivate === "on" || input.isPrivate === "true" || (input.isPrivate as any) === true;
+    const invitedEmails = input.invitedEmails ? input.invitedEmails.split(/[,\n]/).map(e => e.trim()).filter(e => e.length > 0) : [];
+
     const now = new Date().toISOString();
     const event: IEventRecord = {
       id: randomUUID(),
@@ -302,12 +311,16 @@ class EventService implements IEventService {
       status: "draft",
       capacity,
       attendeeCount: 0,
+      isPrivate,
+      invitedEmails,
       createdAt: now,
       updatedAt: now,
     };
 
     const created = await this.repo.create(event);
     if (created.ok === false) return Err(created.value);
+
+    this.logger.info(`Event created: id=${event.id}, isPrivate=${event.isPrivate}, invitedCount=${event.invitedEmails.length}`);
 
     return Ok(toEventSummary(created.value));
   }
@@ -364,18 +377,26 @@ class EventService implements IEventService {
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
 
-    const endOfWeek = new Date(startOfToday);
-    const daysUntilSunday = (7 - endOfWeek.getDay()) % 7;
-    endOfWeek.setDate(endOfWeek.getDate() + daysUntilSunday);
-    endOfWeek.setHours(23, 59, 59, 999);
+    // 'This Week' = Next 7 days
+    const nextSevenDays = new Date(startOfToday);
+    nextSevenDays.setDate(nextSevenDays.getDate() + 7);
+    nextSevenDays.setHours(23, 59, 59, 999);
 
+    // 'This Weekend' = Current or upcoming weekend
+    const currentDay = startOfToday.getDay();
     const saturday = new Date(startOfToday);
-    const daysUntilSaturday = (6 - saturday.getDay() + 7) % 7;
-    saturday.setDate(saturday.getDate() + daysUntilSaturday);
-    saturday.setHours(0, 0, 0, 0);
+    const sunday = new Date(startOfToday);
 
-    const sunday = new Date(saturday);
-    sunday.setDate(sunday.getDate() + 1);
+    if (currentDay === 0) { // Sunday
+      saturday.setDate(saturday.getDate() - 1); 
+    } else if (currentDay === 6) { // Saturday
+      sunday.setDate(sunday.getDate() + 1);
+    } else { // Mon - Fri
+      const daysUntilSaturday = 6 - currentDay;
+      saturday.setDate(saturday.getDate() + daysUntilSaturday);
+      sunday.setDate(sunday.getDate() + daysUntilSaturday + 1);
+    }
+    saturday.setHours(0, 0, 0, 0);
     sunday.setHours(23, 59, 59, 999);
 
     const visibleEvents = allResult.value.filter((event) => {
@@ -387,6 +408,15 @@ class EventService implements IEventService {
         }
       } else if (event.status !== "published") {
         return false;
+      }
+
+      if (event.isPrivate) {
+        const isOwner = currentUser?.userId === event.organizerId;
+        const isStaffOrAdmin = currentUser?.role === "admin" || currentUser?.role === "staff";
+        const isInvited = currentUser && event.invitedEmails.some(e => e.toLowerCase() === currentUser.email.toLowerCase());
+        if (!isOwner && !isStaffOrAdmin && !isInvited) {
+          return false;
+        }
       }
 
       const eventStart = new Date(event.startDate);
@@ -410,7 +440,7 @@ class EventService implements IEventService {
       }
 
       if (trimmedTimeframe === "this-week") {
-        if (eventStart < startOfToday || eventStart > endOfWeek) {
+        if (eventStart < startOfToday || eventStart > nextSevenDays) {
           return false;
         }
       } else if (trimmedTimeframe === "this-weekend") {
@@ -541,6 +571,9 @@ class EventService implements IEventService {
     if (capResult.ok === false) return Err(capResult.value);
     const capacity = capResult.value;
 
+    const isPrivate = input.isPrivate === "on" || input.isPrivate === "true" || (input.isPrivate as any) === true;
+    const invitedEmails = input.invitedEmails ? input.invitedEmails.split(/[,\n]/).map(e => e.trim()).filter(e => e.length > 0) : [];
+
     const updatedEvent: IEventRecord = {
       ...event,
       title: input.title.trim(),
@@ -550,6 +583,8 @@ class EventService implements IEventService {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       capacity,
+      isPrivate,
+      invitedEmails,
       updatedAt: new Date().toISOString(),
     };
 
@@ -630,6 +665,7 @@ class EventService implements IEventService {
 export function CreateEventService(
   repo: IEventRepository,
   rsvpRepo: IRsvpRepository,
+  logger: ILoggingService,
 ): IEventService {
-  return new EventService(repo, rsvpRepo);
+  return new EventService(repo, rsvpRepo, logger);
 }

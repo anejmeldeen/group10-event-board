@@ -16,12 +16,12 @@ import { CreateEventService } from "./event/EventService";
 import { CreateEventController } from "./event/EventController";
 
 // RSVP
-import { CreateInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+import { CreatePrismaRsvpRepository } from "./rsvp/PrismaRsvpRepository";
 import { CreateRsvpService } from "./rsvp/RsvpService";
 import { CreateRsvpController } from "./rsvp/RsvpController";
 
 // Saved
-import { CreateInMemorySavedRepository } from "./saved/InMemorySavedRepository";
+import { CreatePrismaSavedRepository } from "./saved/PrismaSavedRepository";
 import { CreateSavedService } from "./saved/SavedService";
 import { CreateSavedController } from "./saved/SavedController";
 
@@ -40,16 +40,22 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
   const eventRepository = CreatePrismaEventRepository(prisma);
-  const rsvpRepository = CreateInMemoryRsvpRepository();
-  const savedRepository = CreateInMemorySavedRepository();
+  const rsvpRepository = CreatePrismaRsvpRepository(prisma);
+  const savedRepository = CreatePrismaSavedRepository(prisma);
 
-  const eventService = CreateEventService(eventRepository, rsvpRepository);
+  const eventService = CreateEventService(eventRepository, rsvpRepository, resolvedLogger);
   const rsvpService = CreateRsvpService(rsvpRepository, eventRepository);
   const savedService = CreateSavedService(savedRepository, eventRepository);
 
   const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
   const savedController = CreateSavedController(savedService, resolvedLogger);
-  const eventController = CreateEventController(eventService, resolvedLogger, rsvpController, savedService);
+  const eventController = CreateEventController(
+    eventService,
+    resolvedLogger,
+    rsvpController,
+    savedService,
+    rsvpService,
+  );
 
   return CreateApp(
     authController,

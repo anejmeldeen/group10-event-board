@@ -23,6 +23,8 @@ export interface IEventRecord {
   status: EventStatus;
   capacity: number;    // Maximum number of attendees (0 = unlimited)
   attendeeCount: number;
+  isPrivate: boolean;
+  invitedEmails: string[];
   createdAt: string;   // ISO 8601 datetime string
   updatedAt: string;   // ISO 8601 datetime string
 }
@@ -42,6 +44,7 @@ export interface IEventSummary {
   status: EventStatus;
   capacity: number;
   attendeeCount: number;
+  isPrivate: boolean;
 }
 
 export function toEventSummary(event: IEventRecord): IEventSummary {
@@ -57,5 +60,6 @@ export function toEventSummary(event: IEventRecord): IEventSummary {
     status: event.status,
     capacity: event.capacity,
     attendeeCount: event.attendeeCount,
+    isPrivate: event.isPrivate,
   };
 }

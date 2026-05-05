@@ -54,6 +54,8 @@ describe("Feature 5 lifecycle transitions", () => {
       status: overrides.status ?? "draft",
       capacity: overrides.capacity ?? 10,
       attendeeCount: overrides.attendeeCount ?? 0,
+      isPrivate: overrides.isPrivate ?? false,
+      invitedEmails: overrides.invitedEmails ?? [],
       createdAt: overrides.createdAt ?? now,
       updatedAt: overrides.updatedAt ?? now,
     };
@@ -61,7 +63,7 @@ describe("Feature 5 lifecycle transitions", () => {
 
   test("organizer can publish a draft event", async () => {
     const repo = CreateInMemoryEventRepository();
-    const service = CreateEventService(repo, makeRsvpRepo());
+    const service = CreateEventService(repo, makeRsvpRepo(), { info: () => {}, warn: () => {}, error: () => {} });
 
     await repo.create(makeEvent({ id: "publish-draft", status: "draft" }));
 

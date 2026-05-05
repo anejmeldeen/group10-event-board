@@ -27,6 +27,8 @@ describe("Feature 6 filtering", () => {
       status: overrides.status ?? "published",
       capacity: overrides.capacity ?? 10,
       attendeeCount: overrides.attendeeCount ?? 0,
+      isPrivate: overrides.isPrivate ?? false,
+      invitedEmails: overrides.invitedEmails ?? [],
       createdAt: overrides.createdAt ?? now,
       updatedAt: overrides.updatedAt ?? now,
     };
@@ -34,7 +36,7 @@ describe("Feature 6 filtering", () => {
 
   test("returns published upcoming events with no filters", async () => {
     const repo = CreateInMemoryEventRepository();
-    const service = CreateEventService(repo, makeRsvpRepo());
+    const service = CreateEventService(repo, makeRsvpRepo(), { info: () => {}, warn: () => {}, error: () => {} });
 
     await repo.create(makeEvent({ id: "published-1", status: "published" }));
     await repo.create(makeEvent({ id: "draft-1", status: "draft" }));
@@ -108,7 +110,7 @@ describe("Feature 6 filtering", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.value.name).toBe("ValidationError");
-      expect(result.value.field).toBe("category");
+      expect((result.value as any).field).toBe("category");
     }
   });
 
@@ -121,7 +123,7 @@ describe("Feature 6 filtering", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.value.name).toBe("ValidationError");
-      expect(result.value.field).toBe("timeframe");
+      expect((result.value as any).field).toBe("timeframe");
     }
   });
 });

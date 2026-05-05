@@ -1,69 +1,161 @@
-<section class="max-w-4xl mx-auto p-6">
-  <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-8 py-10 text-white">
-      <% if (event.status === 'draft') { %>
-        <span class="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-wider text-amber-900 bg-amber-400 rounded-full uppercase">Draft</span>
-      <% } else if (event.status === 'cancelled') { %>
-        <span class="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-wider text-rose-900 bg-rose-400 rounded-full uppercase">Cancelled</span>
-      <% } else { %>
-        <span class="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-wider text-emerald-900 bg-emerald-400 rounded-full uppercase">Published</span>
-      <% } %>
+<section class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8" x-data="eventDate('<%= event.startDate %>')">
+  <div class="bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
+    
+    <!-- Header Hero Section -->
+    <div class="relative bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 px-8 py-16 sm:px-12 sm:py-20 text-white overflow-hidden">
+      <!-- Decorative background elements -->
+      <div class="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+      <div class="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+      
+      <div class="relative z-10 flex flex-col items-start gap-6">
+        <!-- Status Badges -->
+        <div class="flex gap-3 items-center">
+          <% if (event.status === 'draft') { %>
+            <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold tracking-widest text-amber-900 bg-amber-400 rounded-full uppercase shadow-lg shadow-amber-400/20">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              Draft
+            </span>
+          <% } else if (event.status === 'cancelled') { %>
+            <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold tracking-widest text-rose-900 bg-rose-400 rounded-full uppercase shadow-lg shadow-rose-400/20">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Cancelled
+            </span>
+          <% } else { %>
+            <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold tracking-widest text-emerald-900 bg-emerald-400 rounded-full uppercase shadow-lg shadow-emerald-400/20">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+              Published
+            </span>
+          <% } %>
 
-      <h1 class="text-4xl font-extrabold mb-2 tracking-tight"><%= event.title %></h1>
-
-      <div class="flex items-center gap-4 text-blue-100 mt-4 text-sm font-medium">
-        <div class="flex items-center gap-1.5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-          <span><%= new Date(event.startDate).toLocaleString() %> - <%= new Date(event.endDate).toLocaleString() %></span>
+          <% if (event.isPrivate) { %>
+            <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold tracking-widest text-fuchsia-900 bg-fuchsia-400 rounded-full uppercase shadow-lg shadow-fuchsia-400/20">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              Private Event
+            </span>
+          <% } %>
+          
+          <span class="inline-flex items-center px-3.5 py-1.5 rounded-full bg-white/10 text-white/90 backdrop-blur-sm border border-white/20 text-xs font-bold tracking-widest uppercase">
+            <%= event.category %>
+          </span>
         </div>
-        <div class="flex items-center gap-1.5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-          <span><%= event.location %></span>
+
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-100">
+          <%= event.title %>
+        </h1>
+
+        <!-- Date & Location Container -->
+        <div class="flex flex-col sm:flex-row gap-6 sm:gap-10 mt-4 text-indigo-100">
+          <div class="flex items-start gap-3">
+            <div class="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/10 mt-0.5">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <div>
+              <div class="font-medium text-lg flex items-center gap-2">
+                <%= new Date(event.startDate).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+                <span x-cloak x-show="relativeTime" class="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-500/30 text-indigo-100 text-xs font-bold uppercase tracking-wider ml-1" x-text="relativeTime"></span>
+              </div>
+              <div class="text-indigo-200/80 text-sm mt-0.5 flex items-center gap-1.5">
+                <span class="inline-block w-1 h-1 rounded-full bg-indigo-300"></span>
+                to <%= new Date(event.endDate).toLocaleString([], { hour: '2-digit', minute: '2-digit' }) %>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-3">
+            <div class="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/10 mt-0.5">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </div>
+            <div>
+              <div class="font-medium text-lg"><%= event.location %></div>
+              <div class="text-indigo-200/80 text-sm mt-0.5 flex items-center gap-1.5">
+                <span class="inline-block w-1 h-1 rounded-full bg-indigo-300"></span>
+                Event Location
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="p-8">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div class="md:col-span-2 space-y-8">
+    <!-- Content Section -->
+    <div class="p-8 sm:p-12">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-12 lg:gap-16">
+        
+        <!-- Left Column: Description -->
+        <div class="lg:col-span-2 space-y-10">
           <div>
-            <h2 class="text-xl font-bold text-slate-900 mb-3">About this Event</h2>
-            <p class="text-slate-600 whitespace-pre-wrap leading-relaxed"><%= event.description %></p>
+            <h2 class="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
+              <span class="w-8 h-1 bg-indigo-600 rounded-full inline-block"></span>
+              About this Event
+            </h2>
+            <div class="prose prose-lg prose-slate max-w-none text-slate-600 leading-relaxed whitespace-pre-wrap"><%= event.description %></div>
+          </div>
+          
+          <div class="pt-8 border-t border-slate-100">
+            <h2 class="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
+              <span class="w-8 h-1 bg-indigo-600 rounded-full inline-block"></span>
+              Organizer
+            </h2>
+            <div class="flex items-center gap-5 p-6 rounded-2xl bg-slate-50 border border-slate-100 transition-shadow hover:shadow-md">
+              <div class="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-100 to-blue-200 flex items-center justify-center text-indigo-700 font-bold text-2xl shadow-inner">
+                <%= event.organizerName.charAt(0).toUpperCase() %>
+              </div>
+              <div>
+                <div class="text-xl font-bold text-slate-900"><%= event.organizerName %></div>
+                <div class="text-slate-500 font-medium mt-1">Event Organizer</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="space-y-6">
-          <div class="bg-slate-50 p-5 rounded-xl border border-slate-100">
-            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Event Details</h3>
+        <!-- Right Column: Controls -->
+        <div class="space-y-8 lg:border-l lg:border-slate-100 lg:pl-12 lg:-ml-6">
+          
+          <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-xl shadow-slate-100/50 relative overflow-hidden group hover:border-indigo-100 transition-colors">
+            <!-- decorative accent -->
+            <div class="absolute top-0 left-0 w-1 h-full bg-indigo-500 transform origin-top scale-y-0 group-hover:scale-y-100 transition-transform duration-300"></div>
+            
+            <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Quick Facts
+            </h3>
 
-            <div class="space-y-4">
-              <div>
-                <span class="block text-xs text-slate-500 font-medium mb-1">Organization / Organizer</span>
-                <span class="text-slate-900 font-semibold"><%= event.organizerName %></span>
+            <div class="space-y-5">
+              <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                </div>
+                <div>
+                  <span class="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Capacity</span>
+                  <span class="text-slate-900 font-bold"><%= event.capacity > 0 ? event.capacity + ' spots total' : 'Unlimited seating' %></span>
+                </div>
               </div>
-
-              <div>
-                <span class="block text-xs text-slate-500 font-medium mb-1">Category</span>
-                <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-sm font-medium capitalize"><%= event.category %></span>
-              </div>
-
-              <div>
-                <span class="block text-xs text-slate-500 font-medium mb-1">Capacity</span>
-                <span class="text-slate-900 font-semibold"><%= event.capacity > 0 ? event.capacity + ' spots total' : 'Unlimited seating' %></span>
+              
+              <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                </div>
+                <div>
+                  <span class="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Category</span>
+                  <span class="text-slate-900 font-bold capitalize"><%= event.category %></span>
+                </div>
               </div>
             </div>
           </div>
 
           <div class="pt-2">
             <% if (user.role === 'admin' || user.role === 'staff') { %>
-              <%- include("partials/event-status", { event, user }) %>
+              <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Management Controls</h3>
+                <%- include("partials/event-status", { event, user }) %>
+              </div>
             <% } else { %>
-              <div id="rsvp-section">
+              <div id="rsvp-section" class="bg-indigo-50/50 rounded-2xl p-6 border border-indigo-100">
                 <%- include("partials/rsvp", { rsvpView: rsvpView, eventId: event.id, capacity: event.capacity }) %>
               </div>
 
               <% if (user.role === 'user') { %>
-                <div class="mt-3">
+                <div class="mt-4">
                   <%- include("../partials/saved-toggle-button", {
                     eventId: event.id,
                     saved: typeof isSaved !== 'undefined' ? isSaved : false,
@@ -75,8 +167,40 @@
               <% } %>
             <% } %>
           </div>
+          
         </div>
       </div>
     </div>
   </div>
 </section>
+
+<script>
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('eventDate', (startDateStr) => ({
+      relativeTime: '',
+      init() {
+        if (!startDateStr) return;
+        const d = new Date(startDateStr);
+        const now = new Date();
+        
+        const dDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        const diffInMs = dDay - nowDay;
+        const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
+        
+        if (diffInDays === 0) {
+          this.relativeTime = 'today';
+        } else if (diffInDays === 1) {
+          this.relativeTime = 'tomorrow';
+        } else if (diffInDays === -1) {
+          this.relativeTime = 'yesterday';
+        } else if (diffInDays > 1) {
+          this.relativeTime = `in ${diffInDays} days`;
+        } else if (diffInDays < -1) {
+          this.relativeTime = `${Math.abs(diffInDays)} days ago`;
+        }
+      }
+    }));
+  });
+</script>

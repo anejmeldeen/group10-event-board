@@ -354,7 +354,7 @@ this.app.get(
         }
 
         const eventId = typeof req.params.id === "string" ? req.params.id : "";
-        await this.rsvpController.toggleRsvp(res, eventId, sessionStore(req));
+        await this.rsvpController.toggleRsvp(req, res, eventId, sessionStore(req));
       }),
     );
 
@@ -387,6 +387,8 @@ this.app.get(
             startDate: typeof req.body.startDate === "string" ? req.body.startDate : "",
             endDate: typeof req.body.endDate === "string" ? req.body.endDate : "",
             capacity: typeof req.body.capacity === "string" ? req.body.capacity : "",
+            isPrivate: typeof req.body.isPrivate === "string" ? req.body.isPrivate : undefined,
+            invitedEmails: typeof req.body.invitedEmails === "string" ? req.body.invitedEmails : "",
           },
           sessionStore(req),
           isHtmx,

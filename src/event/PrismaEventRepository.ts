@@ -1,50 +1,15 @@
-/**
- * Prisma-backed implementation of IEventRepository.
- *
- * Replaces the in-memory repository for Sprint 3.
- * All CRUD operations delegate to Prisma Client, which talks to SQLite.
- */
-
-import { PrismaClient } from "@prisma/client";
 import { Ok, Err, type Result } from "../lib/result";
 import { UnexpectedDependencyError, type EventError } from "./errors";
 import type { IEventRepository } from "./EventRepository";
-import type { IEventRecord, EventStatus } from "./Event";
+import type { IEventRecord } from "./Event";
+import { PrismaClient } from "@prisma/client";
 
-/**
- * Map a Prisma row (status stored as string) back to IEventRecord.
- */
-function toEventRecord(row: {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  category: string;
-  startDate: string;
-  endDate: string;
-  organizerId: string;
-  organizerName: string;
-  status: string;
-  capacity: number;
-  attendeeCount: number;
-  createdAt: string;
-  updatedAt: string;
-}): IEventRecord {
+function toEventRecord(event: any): IEventRecord {
   return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    location: row.location,
-    category: row.category,
-    startDate: row.startDate,
-    endDate: row.endDate,
-    organizerId: row.organizerId,
-    organizerName: row.organizerName,
-    status: row.status as EventStatus,
-    capacity: row.capacity,
-    attendeeCount: row.attendeeCount,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    ...event,
+    status: event.status as IEventRecord["status"],
+    isPrivate: Boolean(event.isPrivate),
+    invitedEmails: event.invitedEmails ? JSON.parse(event.invitedEmails) : [],
   };
 }
 
@@ -53,81 +18,108 @@ class PrismaEventRepository implements IEventRepository {
 
   async create(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
     try {
-      const row = await this.prisma.event.create({
+      const created = await this.prisma.event.create({
         data: {
-          id: event.id,
-          title: event.title,
-          description: event.description,
-          location: event.location,
-          category: event.category,
-          startDate: event.startDate,
-          endDate: event.endDate,
-          organizerId: event.organizerId,
-          organizerName: event.organizerName,
-          status: event.status,
-          capacity: event.capacity,
-          attendeeCount: event.attendeeCount,
-          createdAt: event.createdAt,
-          updatedAt: event.updatedAt,
+          ...event,
+          invitedEmails: JSON.stringify(event.invitedEmails || []),
         },
       });
-      return Ok(toEventRecord(row));
-    } catch (error) {
-      return Err(UnexpectedDependencyError("Unable to create the event."));
+
+      return Ok(toEventRecord(created));
+    } catch (e: any) {
+      return Err(UnexpectedDependencyError(`Unable to create event: ${e?.message ?? String(e)}`));
     }
   }
 
   async findById(id: string): Promise<Result<IEventRecord | null, EventError>> {
     try {
-      const row = await this.prisma.event.findUnique({ where: { id } });
-      return Ok(row ? toEventRecord(row) : null);
-    } catch (error) {
-      return Err(UnexpectedDependencyError("Unable to read events."));
+      const event = await this.prisma.event.findUnique({ where: { id } });
+
+      return Ok(event ? toEventRecord(event) : null);
+    } catch (e: any) {
+      return Err(UnexpectedDependencyError(`Unable to read event: ${e?.message ?? String(e)}`));
     }
   }
 
   async findAll(): Promise<Result<IEventRecord[], EventError>> {
     try {
-      const rows = await this.prisma.event.findMany();
-      return Ok(rows.map(toEventRecord));
-    } catch (error) {
-      return Err(UnexpectedDependencyError("Unable to list events."));
+      const events = await this.prisma.event.findMany();
+      return Ok(events.map(toEventRecord));
+    } catch (e: any) {
+      return Err(UnexpectedDependencyError(`Unable to list events: ${e?.message ?? String(e)}`));
+    }
+  }
+// Feature 8 Sprint 3: retrieves all events for a specific organizer
+// used by getOrganizerDashboard to group events by status
+  async findByOrganizerId(
+    organizerId: string
+  ): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const events = await this.prisma.event.findMany({
+        where: { organizerId },
+      });
+
+      return Ok(events.map(toEventRecord));
+    } catch (e: any) {
+      return Err(
+        UnexpectedDependencyError(`Unable to list events for organizer: ${e?.message ?? String(e)}`)
+      );
     }
   }
 
-  async findByOrganizerId(organizerId: string): Promise<Result<IEventRecord[], EventError>> {
+  async findPublishedUpcoming(
+    query: string,
+    category: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<Result<IEventRecord[], EventError>> {
     try {
-      const rows = await this.prisma.event.findMany({
-        where: { organizerId },
+      const now = new Date();
+      const trimmedQuery = query.trim();
+      const trimmedCategory = category.trim();
+
+      const events = await this.prisma.event.findMany({
+        where: {
+          status: "published",
+          startDate: {
+            gte: startDate ? startDate.toISOString() : now.toISOString(),
+            ...(endDate ? { lte: endDate.toISOString() } : {}),
+          },
+          ...(trimmedCategory ? { category: trimmedCategory } : {}),
+          ...(trimmedQuery
+            ? {
+                OR: [
+                  { title: { contains: trimmedQuery } },
+                  { description: { contains: trimmedQuery } },
+                  { location: { contains: trimmedQuery } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: {
+          startDate: "asc",
+        },
       });
-      return Ok(rows.map(toEventRecord));
-    } catch (error) {
-      return Err(UnexpectedDependencyError("Unable to list events for organizer."));
+
+      return Ok(events.map(toEventRecord));
+    } catch {
+      return Err(UnexpectedDependencyError("Unable to filter events."));
     }
   }
 
   async update(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
     try {
-      const row = await this.prisma.event.update({
+      const updated = await this.prisma.event.update({
         where: { id: event.id },
         data: {
-          title: event.title,
-          description: event.description,
-          location: event.location,
-          category: event.category,
-          startDate: event.startDate,
-          endDate: event.endDate,
-          organizerId: event.organizerId,
-          organizerName: event.organizerName,
-          status: event.status,
-          capacity: event.capacity,
-          attendeeCount: event.attendeeCount,
-          updatedAt: event.updatedAt,
+          ...event,
+          invitedEmails: JSON.stringify(event.invitedEmails || []),
         },
       });
-      return Ok(toEventRecord(row));
-    } catch (error) {
-      return Err(UnexpectedDependencyError("Unable to update the event."));
+
+      return Ok(toEventRecord(updated));
+    } catch (e: any) {
+      return Err(UnexpectedDependencyError(`Unable to update event: ${e?.message ?? String(e)}`));
     }
   }
 }

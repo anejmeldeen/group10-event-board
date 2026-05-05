@@ -1,34 +1,91 @@
-<article id="rsvp-row-<%= item.eventId %>" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-    <div class="flex items-start justify-between gap-4">
-        <div class="flex-grow">
-            <div class="flex items-center gap-2 mb-1">
-                <span class="inline-block px-2 py-0.5 text-xs font-bold rounded-md <%= item.rsvpStatus === 'going' ? 'bg-emerald-100 text-emerald-800' : item.rsvpStatus === 'waitlisted' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800' %>">
-                    <%= item.rsvpStatus.charAt(0).toUpperCase() + item.rsvpStatus.slice(1) %>
-                </span>
-                <span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md font-medium"><%= item.category %></span>
+<article id="rsvp-row-<%= item.eventId %>" class="group bg-white rounded-3xl border border-slate-100 p-6 shadow-xl shadow-slate-200/50 transition-all hover:shadow-indigo-500/10 hover:-translate-y-1">
+  <div class="flex flex-col h-full">
+    <!-- Card Header -->
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <div class="flex flex-wrap gap-2">
+        <span class="inline-flex px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full <%= item.rsvpStatus === 'going' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : item.rsvpStatus === 'waitlisted' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-rose-50 text-rose-600 border border-rose-100' %>">
+          <%= item.rsvpStatus %>
+        </span>
+        <span class="inline-flex px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+          <%= item.category %>
+        </span>
+      </div>
+      
+      <% if (item.rsvpStatus !== 'cancelled') { %>
+        <div x-data="{ showConfirm: false }">
+          <button
+            x-on:click="showConfirm = true"
+            class="shrink-0 p-2 text-slate-300 hover:text-rose-500 transition-colors bg-slate-50 hover:bg-rose-50 rounded-xl border border-slate-100 hover:border-rose-100 cursor-pointer"
+            title="Cancel RSVP"
+          >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+
+          <div
+            x-show="showConfirm"
+            x-transition
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          >
+            <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 border border-slate-100">
+              <h3 class="text-lg font-black text-slate-900 mb-2">Cancel RSVP?</h3>
+              <p class="text-slate-500 text-sm mb-6">Are you sure you want to cancel your RSVP for this event? This action cannot be undone.</p>
+              <div class="flex gap-3">
+                <button
+                  x-on:click="showConfirm = false"
+                  class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer"
+                >
+                  Keep RSVP
+                </button>
+                <button
+                  hx-post="/events/<%= item.eventId %>/rsvp/cancel"
+                  hx-target="#rsvp-row-<%= item.eventId %>"
+                  hx-swap="outerHTML"
+                  x-on:click="showConfirm = false"
+                  class="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors cursor-pointer"
+                >
+                  Yes, Cancel
+                </button>
+              </div>
             </div>
-        <h3 class="text-lg font-bold text-slate-900"><%= item.title %></h3>
-        <div class="flex items-center gap-4 mt-2 text-sm text-slate-500">
-            <span class="flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                <%= item.location %>
-            </span>
-            <span class="flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                <time><%= new Date(item.startDate).toLocaleString() %></time>
-            </span>
-            <span class="text-slate-400">by <%= item.organizerName %></span>
+          </div>
         </div>
+      <% } %>
     </div>
-    <% if (item.rsvpStatus !== 'cancelled') { %>
-        <button
-            hx-post="/events/<%= item.eventId %>/rsvp/cancel"
-            hx-target="#rsvp-row-<%= item.eventId %>"
-            hx-swap="outerHTML"
-            class="px-3 py-1.5 text-sm font-medium text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors"
-            >
-                Cancel RSVP
-        </button>
-        <% } %>
+
+    <!-- Card Content -->
+    <a href="/events/<%= item.eventId %>" class="flex-grow no-underline">
+      <h3 class="text-xl font-black text-slate-900 leading-tight group-hover:text-indigo-600 transition-colors mb-3">
+        <%= item.title %>
+      </h3>
+      
+      <div class="space-y-2.5">
+        <div class="flex items-center gap-2 text-sm font-bold text-slate-500">
+          <div class="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-indigo-500 shrink-0">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          </div>
+          <%= item.location %>
+        </div>
+        
+        <div class="flex items-center gap-2 text-sm font-bold text-slate-500">
+          <div class="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-indigo-500 shrink-0">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          </div>
+          <time><%= new Date(item.startDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) %></time>
+        </div>
+      </div>
+    </a>
+
+    <!-- Card Footer -->
+    <div class="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+      <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        By <%= item.organizerName %>
+      </div>
+      <a href="/events/<%= item.eventId %>" class="text-xs font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-wider no-underline flex items-center gap-1.5 group/link">
+        View Details
+        <svg class="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
+      </a>
     </div>
+  </div>
 </article>

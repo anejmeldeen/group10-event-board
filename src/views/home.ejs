@@ -2,84 +2,190 @@
   <%- include("partials/error", { message: pageError }) %>
 <% } %>
 
-<div class="flex items-center justify-between mb-8">
-  <div>
-    <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Event Dashboard</h1>
-    <p class="text-slate-500 mt-1">Discover what's happening and plan your schedule.</p>
-  </div>
+<!-- Hero Header Section -->
+<div class="relative bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 rounded-3xl overflow-hidden mb-10 shadow-2xl shadow-slate-200/50">
+  <div class="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+  <div class="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+  
+  <div class="relative z-10 px-8 py-12 sm:px-12 sm:py-16 text-white flex flex-col md:flex-row items-center justify-between gap-8">
+    <div>
+      <h1 class="text-4xl sm:text-5xl font-black tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-100">Event Dashboard</h1>
+      <p class="text-indigo-200 mt-3 text-lg font-medium">Discover what's happening and plan your schedule.</p>
+    </div>
 
-  <div class="flex gap-3">
-    <% if (user?.role === 'user') { %>
-      <a
-        href="/saved"
-        class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-sm transition-colors no-underline"
-      >
-        Saved Events
-      </a>
-    <% } %>
+    <div class="flex flex-col gap-3 shrink-0">
+      <% if (user?.role === 'user') { %>
+        <a href="/rsvps/me" class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-500/20 hover:bg-indigo-500/30 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+          </svg>
+          My RSVPs
+        </a>
+        <a href="/saved" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+          Saved Events
+        </a>
+      <% } %>
 
-    <% if (user?.role === 'admin' || user?.role === 'staff') { %>
-      <a
-        href="/events/create"
-        class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm transition-colors no-underline"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-        Create Event
-      </a>
-    <% } %>
+      <% if (user?.role === 'admin' || user?.role === 'staff') { %>
+        <a href="/organizer/dashboard" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          My Events
+        </a>
+        <% if (user?.role === 'admin') { %>
+          <a href="/admin/users" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Manage Users
+          </a>
+        <% } %>
+        <a href="/events/create" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold rounded-xl shadow-lg transition-colors no-underline">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Create Event
+        </a>
+      <% } %>
+    </div>
   </div>
 </div>
 
+<!-- Filters Section -->
 <form
   method="GET"
   action="/home"
-  class="mb-8 space-y-3"
+  class="mb-10 bg-white p-6 sm:p-8 rounded-3xl shadow-xl shadow-slate-100/50 border border-slate-100 flex flex-col lg:flex-row gap-5 relative z-20 -mt-16 mx-4 sm:mx-8"
   hx-get="/home"
   hx-trigger="keyup changed delay:300ms from:input[name='q'], change from:select, submit"
   hx-target="#event-list"
   hx-swap="innerHTML"
   hx-push-url="true"
+  x-data="{
+    q: '<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>',
+    category: '<%= typeof selectedCategory !== 'undefined' ? selectedCategory : '' %>',
+    timeframe: '<%= typeof selectedTimeframe !== 'undefined' ? selectedTimeframe : '' %>'
+  }"
 >
-  <div class="flex gap-3">
-    <input
-      type="text"
-      name="q"
-      value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>"
-      placeholder="Search by title, description, or location"
-      class="flex-1 px-4 py-3 rounded-xl border border-slate-300 bg-white shadow-sm"
-    />
-    <button
-      type="submit"
-      class="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-sm"
-    >
-      Search
-    </button>
+  <div class="flex-1">
+    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Search</label>
+    <div class="relative group">
+      <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+      </div>
+      <input
+        type="text"
+        name="q"
+        x-model="q"
+        value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>"
+        placeholder="Find an event by title, desc, or location..."
+        class="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium text-slate-700 shadow-sm"
+      />
+      <button
+        type="button"
+        x-show="q"
+        x-cloak
+        @click="q = ''; $nextTick(() => { $el.closest('form').dispatchEvent(new Event('submit', { bubbles: true })); })"
+        class="absolute inset-y-0 right-3 my-auto h-8 w-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-500 hover:text-slate-700 transition-colors"
+        aria-label="Clear search"
+        title="Clear search"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
   </div>
 
-  <div class="flex gap-3">
-    <select
-      name="category"
-      class="px-4 py-3 rounded-xl border border-slate-300 bg-white shadow-sm"
-    >
-      <option value="">All categories</option>
-      <option value="social" <%= selectedCategory === "social" ? "selected" : "" %>>Social</option>
-      <option value="educational" <%= selectedCategory === "educational" ? "selected" : "" %>>Educational</option>
-      <option value="volunteer" <%= selectedCategory === "volunteer" ? "selected" : "" %>>Volunteer</option>
-      <option value="sports" <%= selectedCategory === "sports" ? "selected" : "" %>>Sports</option>
-      <option value="arts" <%= selectedCategory === "arts" ? "selected" : "" %>>Arts</option>
-    </select>
+  <div class="flex flex-col sm:flex-row gap-5 shrink-0 lg:w-auto w-full">
+    <div class="flex-1 sm:w-48">
+      <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Category</label>
+      <div class="relative">
+        <select
+          name="category"
+          x-model="category"
+          class="w-full appearance-none px-4 py-3.5 rounded-xl border focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium shadow-sm pr-10 <%= selectedCategory ? 'border-indigo-400 bg-indigo-50 text-indigo-700 font-semibold' : 'border-slate-200 bg-slate-50 text-slate-700' %>"
+        >
+          <option value="">All categories</option>
+          <option value="social" <%= selectedCategory === "social" ? "selected" : "" %>>Social</option>
+          <option value="educational" <%= selectedCategory === "educational" ? "selected" : "" %>>Educational</option>
+          <option value="volunteer" <%= selectedCategory === "volunteer" ? "selected" : "" %>>Volunteer</option>
+          <option value="sports" <%= selectedCategory === "sports" ? "selected" : "" %>>Sports</option>
+          <option value="arts" <%= selectedCategory === "arts" ? "selected" : "" %>>Arts</option>
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </div>
+      </div>
+    </div>
 
-    <select
-      name="timeframe"
-      class="px-4 py-3 rounded-xl border border-slate-300 bg-white shadow-sm"
-    >
-      <option value="">All upcoming</option>
-      <option value="this-week" <%= selectedTimeframe === "this-week" ? "selected" : "" %>>This week</option>
-      <option value="this-weekend" <%= selectedTimeframe === "this-weekend" ? "selected" : "" %>>This weekend</option>
-    </select>
+    <div class="flex-1 sm:w-48">
+      <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Timeframe</label>
+      <div class="relative">
+        <select
+          name="timeframe"
+          x-model="timeframe"
+          class="w-full appearance-none px-4 py-3.5 rounded-xl border focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-medium shadow-sm pr-10 <%= selectedTimeframe ? 'border-indigo-400 bg-indigo-50 text-indigo-700 font-semibold' : 'border-slate-200 bg-slate-50 text-slate-700' %>"
+        >
+          <option value="">All upcoming</option>
+          <option value="this-week" <%= selectedTimeframe === "this-week" ? "selected" : "" %>>This week</option>
+          <option value="this-weekend" <%= selectedTimeframe === "this-weekend" ? "selected" : "" %>>This weekend</option>
+        </select>
+        <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <button
+    type="button"
+    @click="q = ''; category = ''; timeframe = ''; $nextTick(() => { $el.closest('form').dispatchEvent(new Event('submit', {bubbles: true})); })"
+    x-show="q || category || timeframe"
+    x-cloak
+    class="self-end px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl border border-slate-300 no-underline cursor-pointer transition-all"
+  >
+    Clear filters
+  </button>
+  
+  <button type="submit" class="hidden">Search</button>
 </form>
 
-<div id="event-list">
+<div id="event-list" class="mt-8">
   <%- include("event/partials/event-list", { events, user, savedEventIds: typeof savedEventIds !== 'undefined' ? savedEventIds : new Set() }) %>
 </div>
+
+<script>
+  if (typeof Alpine !== 'undefined' && !Alpine.data('eventDate')) {
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('eventDate', (startDateStr) => ({
+        relativeTime: '',
+        init() {
+          if (!startDateStr) return;
+          const d = new Date(startDateStr);
+          const now = new Date();
+          
+          const dDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          
+          const diffInMs = dDay - nowDay;
+          const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
+          
+          if (diffInDays === 0) {
+            this.relativeTime = 'today';
+          } else if (diffInDays === 1) {
+            this.relativeTime = 'tomorrow';
+          } else if (diffInDays === -1) {
+            this.relativeTime = 'yesterday';
+          } else if (diffInDays > 1) {
+            this.relativeTime = `in ${diffInDays} days`;
+          } else if (diffInDays < -1) {
+            this.relativeTime = `${Math.abs(diffInDays)} days ago`;
+          }
+        }
+      }));
+    });
+  }
+</script>

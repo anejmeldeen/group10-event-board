@@ -24,6 +24,8 @@ async function seedPublishedEvent(
     organizerId: "user-staff",
     organizerName: "Sam Staff",
     attendeeCount: 0,
+    isPrivate: false,
+    invitedEmails: [],
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -86,7 +88,7 @@ describe("EventService.updateEvent", () => {
   beforeEach(() => {
     repo = CreateInMemoryEventRepository();
     const rsvpRepo = CreateInMemoryRsvpRepository();
-    service = CreateEventService(repo, rsvpRepo);
+    service = CreateEventService(repo, rsvpRepo, { info: () => {}, warn: () => {}, error: () => {} });
   });
 
   it("allows the organizer to edit their own published event", async () => {

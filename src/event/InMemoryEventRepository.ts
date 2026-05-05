@@ -48,6 +48,53 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
+  async findPublishedUpcoming(
+    query: string,
+    category: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<Result<IEventRecord[], EventError>> {
+    try {
+      const now = new Date();
+      const trimmedQuery = query.trim().toLowerCase();
+      const trimmedCategory = category.trim().toLowerCase();
+
+      const matches = this.events.filter((event) => {
+        if (event.status !== "published") return false;
+
+        const eventStart = new Date(event.startDate);
+        if (eventStart < now) return false;
+
+        if (trimmedQuery) {
+          const matchesQuery =
+            event.title.toLowerCase().includes(trimmedQuery) ||
+            event.description.toLowerCase().includes(trimmedQuery) ||
+            event.location.toLowerCase().includes(trimmedQuery);
+          if (!matchesQuery) return false;
+        }
+
+        if (trimmedCategory && event.category.toLowerCase() !== trimmedCategory) {
+          return false;
+        }
+
+        if (startDate && eventStart < startDate) return false;
+        if (endDate && eventStart > endDate) return false;
+
+        return true;
+      });
+
+      matches.sort(
+        (a, b) =>
+          new Date(a.startDate).getTime() -
+          new Date(b.startDate).getTime()
+      );
+
+      return Ok(matches.map((e) => ({ ...e })));
+    } catch {
+      return Err(UnexpectedDependencyError("Unable to filter events."));
+    }
+  }
+
   async update(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
     try {
       const index = this.events.findIndex((e) => e.id === event.id);
