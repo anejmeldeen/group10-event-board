@@ -12,7 +12,7 @@
 </div>
 
 <section class="max-w-3xl p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
-  <form hx-post="/events/<%= event.id %>/edit" hx-target="#edit-error" hx-swap="innerHTML" x-data="{ dirty: false }" x-on:input="dirty = true" class="space-y-4">
+  <form hx-post="/events/<%= event.id %>/edit" hx-target="#edit-error" hx-swap="innerHTML" x-data="editFormHandler()" x-init="init()" x-on:input="markDirty()" x-on:submit="handleSubmit()" x-on:beforeunload.window="warnIfDirty($event)" class="space-y-4">
 
     <div>
       <label for="title" class="block text-sm font-medium text-slate-700 mb-1">Title</label>
@@ -57,3 +57,36 @@
     </div>
   </form>
 </section>
+
+<script>
+function editFormHandler() {
+  return {
+    dirty: false,
+    initialData: '',
+
+    init() {
+      this.initialData = this.serialize()
+    },
+
+    serialize() {
+      const form = this.$el
+      return new URLSearchParams(new FormData(form)).toString()
+    },
+
+    markDirty() {
+      this.dirty = this.serialize() !== this.initialData
+    },
+
+    handleSubmit() {
+      this.dirty = false
+    },
+
+    warnIfDirty(event) {
+      if (this.dirty) {
+        event.preventDefault()
+        event.returnValue = ''
+      }
+    }
+  }
+}
+</script>
