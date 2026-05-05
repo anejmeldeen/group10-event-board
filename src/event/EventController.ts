@@ -10,6 +10,7 @@ import type { ILoggingService } from "../service/LoggingService";
 import type { EventError } from "./errors";
 import type { IRsvpController } from "../rsvp/RsvpController";
 import type { ISavedService } from "../saved/SavedService";
+import type { IRsvpService } from "../rsvp/RsvpService";
 
 export interface IEventController {
   showCreateForm(
@@ -83,6 +84,7 @@ class EventController implements IEventController {
     private readonly logger: ILoggingService,
     private readonly rsvpController?: IRsvpController,
     private readonly savedService?: ISavedService,
+    private readonly rsvpService?: IRsvpService,
   ) {}
 
   private mapErrorStatus(error: EventError): number {
@@ -150,9 +152,7 @@ class EventController implements IEventController {
       rsvpView = await this.rsvpController.getRsvpView(
         eventId,
         store,
-        event.status,
-        event.organizerId,
-        event.capacity,
+        event,
       );
     }
 
@@ -253,12 +253,21 @@ class EventController implements IEventController {
         savedEventIds = savedIdsResult.value;
       }
     }
+    
+    let rsvpStatuses = new Map<string, string>();
+    if (this.rsvpService && currentUser && currentUser.role === "user") {
+      const rsvpStatusesResult = await this.rsvpService.getUserRsvpStatuses(currentUser.userId);
+      if (rsvpStatusesResult.ok) {
+        rsvpStatuses = rsvpStatusesResult.value;
+      }
+    }
 
     if (isHtmx) {
       res.render("event/partials/event-list", {
         events: result.value,
         user: currentUser,
         savedEventIds,
+        rsvpStatuses,
         layout: false,
       });
       return;
@@ -273,6 +282,7 @@ class EventController implements IEventController {
       selectedCategory: category,
       selectedTimeframe: timeframe,
       savedEventIds,
+      rsvpStatuses,
     });
   }
 
@@ -553,6 +563,8 @@ class EventController implements IEventController {
       startDate: input.startDate ?? event.startDate,
       endDate: input.endDate ?? event.endDate,
       capacity: input.capacity ?? String(event.capacity),
+      isPrivate: input.isPrivate ?? (event.isPrivate ? "on" : undefined),
+      invitedEmails: input.invitedEmails ?? event.invitedEmails.join(", "),
     };
 
     res.render("event/edit", {
@@ -629,6 +641,7 @@ export function CreateEventController(
   logger: ILoggingService,
   rsvpController?: IRsvpController,
   savedService?: ISavedService,
+  rsvpService?: IRsvpService,
 ): IEventController {
-  return new EventController(service, logger, rsvpController, savedService);
+  return new EventController(service, logger, rsvpController, savedService, rsvpService);
 }

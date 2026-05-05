@@ -43,7 +43,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const rsvpRepository = CreatePrismaRsvpRepository(prisma);
   const savedRepository = CreatePrismaSavedRepository(prisma);
 
-  const eventService = CreateEventService(eventRepository, rsvpRepository);
+  const eventService = CreateEventService(eventRepository, rsvpRepository, resolvedLogger);
   const rsvpService = CreateRsvpService(rsvpRepository, eventRepository);
   const savedService = CreateSavedService(savedRepository, eventRepository);
 
@@ -54,6 +54,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     resolvedLogger,
     rsvpController,
     savedService,
+    rsvpService,
   );
 
   return CreateApp(
