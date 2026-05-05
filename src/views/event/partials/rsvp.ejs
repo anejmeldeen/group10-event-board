@@ -42,7 +42,7 @@
   </div>
 
   <% if (rsvpView.canRsvp) { %>
-    <form hx-post="/events/<%= eventId %>/rsvp" hx-target="#rsvp-section" hx-swap="innerHTML">
+    <form hx-post="/events/<%= eventId %>/rsvp" hx-target="#rsvp-section" hx-swap="innerHTML" x-data="{ loading: false }" x-on:submit="loading = true">
       <% 
         const isFull = rsvpView.capacity > 0 && rsvpView.goingCount >= rsvpView.capacity;
         const status = rsvpView.currentStatus;
