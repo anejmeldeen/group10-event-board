@@ -23,7 +23,7 @@
   </div>
 </div>
 
-<div id="edit-error">
+<div id="edit-error" aria-live="polite">
   <% if (pageError) { %>
     <%- include("../partials/error", { message: pageError }) %>
   <% } %>
@@ -214,5 +214,6 @@
         </button>
       </div>
     </div>
+
   </form>
 </div>
