@@ -17,7 +17,7 @@
           buttonText = 'Join Waitlist';
         }
       %>
-      <button type="submit" class="w-full py-2.5 px-4 <%= buttonClass %> font-bold rounded-xl transition-all shadow-sm cursor-pointer">
+      <button type="submit" :disabled="loading" class="w-full py-2.5 px-4 <%= buttonClass %> font-bold rounded-xl transition-all shadow-sm cursor-pointer">
         <%= buttonText %>
       </button>
     </form>
@@ -48,13 +48,13 @@
         const status = rsvpView.currentStatus;
       %>
       <% if (status === 'none' || status === 'cancelled') { %>
-        <button type="submit" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg cursor-pointer">
+        <button type="submit" :disabled="loading" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg cursor-pointer">
           <%= isFull ? 'Join Waitlist' : 'RSVP' %>
         </button>
       <% } else if (status === 'going') { %>
-        <button type="submit" class="w-full py-3 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg cursor-pointer">Cancel RSVP</button>
+        <button type="submit" :disabled="loading" class="w-full py-3 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg cursor-pointer">Cancel RSVP</button>
       <% } else if (status === 'waitlisted') { %>
-        <button type="submit" class="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg cursor-pointer">Leave Waitlist</button>
+        <button type="submit" :disabled="loading" class="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-md transition-colors text-lg cursor-pointer">Leave Waitlist</button>
       <% } %>
     </form>
   <% } else { %>
