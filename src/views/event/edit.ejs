@@ -12,7 +12,7 @@
 </div>
 
 <section class="max-w-3xl p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
-  <form hx-post="/events/<%= event.id %>/edit" hx-target="#edit-error" hx-swap="innerHTML" class="space-y-4">
+  <form hx-post="/events/<%= event.id %>/edit" hx-target="#edit-error" hx-swap="innerHTML" x-data="{ dirty: false }" class="space-y-4">
 
     <div>
       <label for="title" class="block text-sm font-medium text-slate-700 mb-1">Title</label>
