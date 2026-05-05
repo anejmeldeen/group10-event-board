@@ -52,7 +52,7 @@
     </div>
 
     <div class="flex items-center gap-3 pt-2">
-      <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium cursor-pointer hover:bg-blue-700">Save changes</button>
+      <button type="submit" :class="dirty ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'" class="px-4 py-2 rounded-lg text-white font-medium transition">
       <a href="/events/<%= event.id %>" class="px-4 py-2 rounded-lg bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 no-underline">Cancel</a>
     </div>
   </form>
